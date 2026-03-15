@@ -15,6 +15,7 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard
 
 Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
 Route::get('/courses/create', [CourseController::class, 'create'])->name('courses.create');
+Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->name('courses.edit');
 
 Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
 
