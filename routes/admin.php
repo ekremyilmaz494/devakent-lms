@@ -17,7 +17,6 @@ Route::get('/courses', [CourseController::class, 'index'])->name('courses.index'
 Route::get('/courses/create', [CourseController::class, 'create'])->name('courses.create');
 
 Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
-Route::get('/staff/create', [StaffController::class, 'create'])->name('staff.create');
 
 Route::get('/departments', [DepartmentController::class, 'index'])->name('departments.index');
 Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
