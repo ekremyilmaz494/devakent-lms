@@ -78,7 +78,8 @@ class CourseTable extends Component
             ->paginate(10);
 
         $categories = Category::orderBy('name')->get();
+        $totalCourses = Course::count();
 
-        return view('livewire.admin.course-table', compact('courses', 'categories'));
+        return view('livewire.admin.course-table', compact('courses', 'categories', 'totalCourses'));
     }
 }

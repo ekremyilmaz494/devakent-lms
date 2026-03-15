@@ -179,7 +179,7 @@ class StaffTable extends Component
 
     public function render()
     {
-        $staff = User::query()
+        $query = User::query()
             ->role('staff')
             ->with('department')
             ->when($this->search, function ($q) {
@@ -194,15 +194,18 @@ class StaffTable extends Component
             ->when($this->filterStatus !== '', function ($q) {
                 $q->where('is_active', $this->filterStatus === '1');
             })
-            ->withCount('enrollments')
-            ->orderBy('first_name')
-            ->paginate(15);
+            ->withCount(['enrollments', 'enrollments as completed_enrollments_count' => function ($q) {
+                $q->where('status', 'completed');
+            }]);
+
+        $totalStaff = User::role('staff')->count();
+        $staff = $query->orderBy('first_name')->paginate(15);
 
         $departments = Department::where('is_active', true)->orderBy('name')->get();
 
         // Detail modal user
         $viewingUser = $this->viewingId ? User::with(['department', 'enrollments.course'])->withCount(['enrollments', 'certificates'])->find($this->viewingId) : null;
 
-        return view('livewire.admin.staff-table', compact('staff', 'departments', 'viewingUser'));
+        return view('livewire.admin.staff-table', compact('staff', 'departments', 'viewingUser', 'totalStaff'));
     }
 }
