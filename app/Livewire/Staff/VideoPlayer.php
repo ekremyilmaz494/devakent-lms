@@ -1,0 +1,104 @@
+<?php
+
+namespace App\Livewire\Staff;
+
+use App\Models\Enrollment;
+use App\Models\VideoProgress;
+use Livewire\Component;
+
+class VideoPlayer extends Component
+{
+    public int $enrollmentId;
+    public string $videoPath = '';
+    public int $totalSeconds = 0;
+    public int $watchedSeconds = 0;
+    public int $lastPosition = 0;
+    public bool $isCompleted = false;
+
+    public function mount(int $enrollmentId): void
+    {
+        $this->enrollmentId = $enrollmentId;
+
+        $enrollment = Enrollment::with('course')->findOrFail($enrollmentId);
+        $this->videoPath = $enrollment->course->video_path ?? '';
+        $this->totalSeconds = $enrollment->course->video_duration_seconds ?? 0;
+
+        // Load existing progress
+        $progress = VideoProgress::where('enrollment_id', $enrollmentId)
+            ->where('attempt_number', $enrollment->current_attempt ?: 1)
+            ->first();
+
+        if ($progress) {
+            $this->watchedSeconds = $progress->watched_seconds;
+            $this->lastPosition = $progress->last_position;
+            $this->isCompleted = $progress->is_completed;
+        }
+    }
+
+    public function updateProgress(int $currentPosition, int $watchedSeconds): void
+    {
+        if ($this->isCompleted) return;
+
+        $enrollment = Enrollment::find($this->enrollmentId);
+        $attemptNumber = $enrollment->current_attempt ?: 1;
+
+        $this->watchedSeconds = max($this->watchedSeconds, $watchedSeconds);
+        $this->lastPosition = $currentPosition;
+
+        // Check if video is completed (watched at least 90% of total duration)
+        $completionThreshold = $this->totalSeconds > 0 ? ($this->totalSeconds * 0.9) : 0;
+        $this->isCompleted = $this->watchedSeconds >= $completionThreshold;
+
+        VideoProgress::updateOrCreate(
+            [
+                'enrollment_id' => $this->enrollmentId,
+                'attempt_number' => $attemptNumber,
+            ],
+            [
+                'watched_seconds' => $this->watchedSeconds,
+                'total_seconds' => $this->totalSeconds,
+                'is_completed' => $this->isCompleted,
+                'last_position' => $this->lastPosition,
+            ]
+        );
+
+        if ($this->isCompleted) {
+            $this->dispatch('videoCompleted');
+        }
+    }
+
+    public function markCompleted(): void
+    {
+        // Manual completion for demo/testing or when video has no duration info
+        $enrollment = Enrollment::find($this->enrollmentId);
+        $attemptNumber = $enrollment->current_attempt ?: 1;
+
+        $this->isCompleted = true;
+
+        VideoProgress::updateOrCreate(
+            [
+                'enrollment_id' => $this->enrollmentId,
+                'attempt_number' => $attemptNumber,
+            ],
+            [
+                'watched_seconds' => $this->totalSeconds,
+                'total_seconds' => $this->totalSeconds,
+                'is_completed' => true,
+                'last_position' => $this->totalSeconds,
+            ]
+        );
+
+        $this->dispatch('videoCompleted');
+    }
+
+    public function render()
+    {
+        $progressPercent = $this->totalSeconds > 0
+            ? min(100, round(($this->watchedSeconds / $this->totalSeconds) * 100))
+            : 0;
+
+        return view('livewire.staff.video-player', [
+            'progressPercent' => $progressPercent,
+        ]);
+    }
+}
