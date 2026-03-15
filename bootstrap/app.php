@@ -9,9 +9,23 @@ return Application::configure(basePath: dirname(__DIR__))
         web: __DIR__.'/../routes/web.php',
         commands: __DIR__.'/../routes/console.php',
         health: '/up',
+        then: function () {
+            Route::middleware(['web', 'auth', 'admin'])
+                ->prefix('admin')
+                ->name('admin.')
+                ->group(base_path('routes/admin.php'));
+
+            Route::middleware(['web', 'auth', 'staff'])
+                ->prefix('staff')
+                ->name('staff.')
+                ->group(base_path('routes/staff.php'));
+        },
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        //
+        $middleware->alias([
+            'admin' => \App\Http\Middleware\AdminMiddleware::class,
+            'staff' => \App\Http\Middleware\StaffMiddleware::class,
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
         //
