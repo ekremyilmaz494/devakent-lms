@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Staff;
 
 use App\Http\Controllers\Controller;
 use App\Models\NotificationRecipient;
+use Illuminate\Support\Facades\Cache;
 
 class NotificationController extends Controller
 {
@@ -31,15 +32,20 @@ class NotificationController extends Controller
             ->firstOrFail();
 
         $recipient->update(['is_read' => true, 'read_at' => now()]);
+        Cache::forget("header.unread_notifs.{$recipient->user_id}");
+        Cache::forget("staff.unread_notifications.{$recipient->user_id}");
 
         return back()->with('success', 'Bildirim okundu olarak işaretlendi.');
     }
 
     public function markAllAsRead()
     {
-        NotificationRecipient::where('user_id', auth()->id())
+        $userId = auth()->id();
+        NotificationRecipient::where('user_id', $userId)
             ->where('is_read', false)
             ->update(['is_read' => true, 'read_at' => now()]);
+        Cache::forget("header.unread_notifs.{$userId}");
+        Cache::forget("staff.unread_notifications.{$userId}");
 
         return back()->with('success', 'Tüm bildirimler okundu olarak işaretlendi.');
     }

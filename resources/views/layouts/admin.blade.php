@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}"
     x-data="{
-        darkMode: localStorage.getItem('darkMode') === 'true'
+        darkMode: localStorage.getItem('darkMode') === 'true',
+        sidebarOpen: false
     }"
     x-effect="darkMode ? $el.classList.add('dark') : $el.classList.remove('dark')"
 >
@@ -18,6 +19,18 @@
 </head>
 <body class="font-sans antialiased bg-gray-50 dark:bg-gray-900 text-gray-900 dark:text-gray-100">
     <div class="flex h-screen overflow-hidden">
+        {{-- Mobile sidebar backdrop --}}
+        <div x-show="sidebarOpen"
+             x-cloak
+             @click="sidebarOpen = false"
+             x-transition:enter="transition ease-out duration-200"
+             x-transition:enter-start="opacity-0"
+             x-transition:enter-end="opacity-100"
+             x-transition:leave="transition ease-in duration-150"
+             x-transition:leave-start="opacity-100"
+             x-transition:leave-end="opacity-0"
+             class="fixed inset-0 z-40 bg-black/50 lg:hidden"></div>
+
         {{-- Sidebar --}}
         @include('layouts.partials.admin-sidebar')
 
@@ -75,6 +88,7 @@
     </div>
 
     @livewireScripts
+    @livewireScriptConfig
     @stack('scripts')
 </body>
 </html>

@@ -11,10 +11,12 @@ use App\Models\Enrollment;
 use App\Models\User;
 use App\Notifications\CourseAssignedNotification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithFileUploads;
 
-class CourseForm extends Component
+class CourseForm extends AdminComponent
 {
     use WithFileUploads;
 
@@ -34,6 +36,9 @@ class CourseForm extends Component
 
     // Department assignment
     public array $selectedDepartments = [];
+
+    // Per-person assignment (Alpine manages UI, synced on save)
+    public array $selectedPersonnel = [];
 
     // Videos (çoklu) — metadata array'i
     public array $videos = [];
@@ -77,21 +82,24 @@ class CourseForm extends Component
         ];
     }
 
-    protected $messages = [
-        'title.required' => 'Eğitim başlığı zorunludur.',
-        'category_id.required' => 'Kategori seçimi zorunludur.',
-        'end_date.after_or_equal' => 'Bitiş tarihi, başlangıç tarihinden sonra olmalıdır.',
-        'videos.*.title.required' => 'Video başlığı zorunludur.',
-        'videoFiles.*.max' => 'Video dosyası en fazla 500MB olabilir.',
-        'videoFiles.*.mimes' => 'Video dosyası mp4, avi, mov veya wmv formatında olmalıdır.',
-        'videoFiles.*.uploaded' => 'Video yüklenemedi. Dosya boyutu çok büyük olabilir.',
-        'questions.*.question_text.required' => 'Soru metni zorunludur.',
-        'questions.*.option_a.required' => 'A şıkkı zorunludur.',
-        'questions.*.option_b.required' => 'B şıkkı zorunludur.',
-        'questions.*.option_c.required' => 'C şıkkı zorunludur.',
-        'questions.*.option_d.required' => 'D şıkkı zorunludur.',
-        'questions.*.correct_option.required' => 'Doğru cevap seçimi zorunludur.',
-    ];
+    protected function messages(): array
+    {
+        return [
+            'title.required'                      => __('lms.val_title_required'),
+            'category_id.required'                => __('lms.val_category_required'),
+            'end_date.after_or_equal'             => __('lms.val_end_date'),
+            'videos.*.title.required'             => __('lms.val_video_title'),
+            'videoFiles.*.max'                    => __('lms.val_video_size'),
+            'videoFiles.*.mimes'                  => __('lms.val_video_mimes'),
+            'videoFiles.*.uploaded'               => __('lms.val_video_upload'),
+            'questions.*.question_text.required'  => __('lms.val_question_text'),
+            'questions.*.option_a.required'       => __('lms.val_option_required', ['letter' => 'A']),
+            'questions.*.option_b.required'       => __('lms.val_option_required', ['letter' => 'B']),
+            'questions.*.option_c.required'       => __('lms.val_option_required', ['letter' => 'C']),
+            'questions.*.option_d.required'       => __('lms.val_option_required', ['letter' => 'D']),
+            'questions.*.correct_option.required' => __('lms.val_correct_option'),
+        ];
+    }
 
     public function mount(?int $courseId = null): void
     {
@@ -109,6 +117,8 @@ class CourseForm extends Component
             $this->is_mandatory = $course->is_mandatory;
             $this->status = $course->status;
             $this->selectedDepartments = $course->departments->pluck('id')->toArray();
+            $this->selectedPersonnel   = Enrollment::where('course_id', $courseId)
+                ->pluck('user_id')->map(fn ($id) => (int) $id)->toArray();
 
             $this->videos = $course->videos->map(fn ($v) => [
                 'id' => $v->id,
@@ -258,6 +268,14 @@ class CourseForm extends Component
     {
         $this->validate();
 
+        // Yeni eklenen videolar (id'siz) için dosya zorunlu
+        foreach ($this->videos as $index => $videoData) {
+            if (empty($videoData['id']) && empty($this->videoFiles[$index])) {
+                $this->addError("videoFiles.{$index}", __('lms.val_video_file_required'));
+                return;
+            }
+        }
+
         $data = [
             'title' => $this->title,
             'description' => $this->description ?: null,
@@ -271,57 +289,70 @@ class CourseForm extends Component
             'status' => $this->status,
         ];
 
-        if ($this->courseId) {
-            $course = Course::findOrFail($this->courseId);
-            $course->update($data);
-        } else {
-            $data['created_by'] = Auth::id();
-            $course = Course::create($data);
-            $this->courseId = $course->id;
-        }
-
-        // Sync departments
-        $course->departments()->sync($this->selectedDepartments);
-
-        // Auto-enroll staff in selected departments
-        $enrollmentCount = $this->syncEnrollments($course);
-
-        // ── Video Sync ──
-        $this->syncVideos($course);
-
-        // ── Soru Sync ──
-        $existingQuestionIds = [];
-        foreach ($this->questions as $index => $qData) {
-            $questionData = [
-                'course_id' => $course->id,
-                'question_text' => $qData['question_text'],
-                'option_a' => $qData['option_a'],
-                'option_b' => $qData['option_b'],
-                'option_c' => $qData['option_c'],
-                'option_d' => $qData['option_d'],
-                'correct_option' => $qData['correct_option'],
-                'sort_order' => $index + 1,
-            ];
-
-            if (!empty($qData['id'])) {
-                $course->questions()->where('id', $qData['id'])->update($questionData);
-                $existingQuestionIds[] = $qData['id'];
+        [$course, $enrollmentCount] = DB::transaction(function () use ($data) {
+            if ($this->courseId) {
+                $course = Course::findOrFail($this->courseId);
+                $course->update($data);
             } else {
-                $newQ = $course->questions()->create($questionData);
-                $existingQuestionIds[] = $newQ->id;
-                $this->questions[$index]['id'] = $newQ->id;
+                $data['created_by'] = Auth::id();
+                $course = Course::create($data);
             }
-        }
 
-        // Delete removed questions
-        $course->questions()->whereNotIn('id', $existingQuestionIds)->delete();
+            // Derive departments from selected personnel's department_id
+            $derivedDeptIds = empty($this->selectedPersonnel)
+                ? []
+                : User::whereIn('id', $this->selectedPersonnel)
+                    ->whereNotNull('department_id')
+                    ->pluck('department_id')->unique()->filter()->values()->toArray();
+            $this->selectedDepartments = $derivedDeptIds;
+            $course->departments()->sync($derivedDeptIds);
 
-        // ── Kaynak/Materyal Sync ──
-        $this->syncResources($course);
+            // Enroll specifically selected personnel
+            $enrollmentCount = $this->syncEnrollments($course);
 
-        $message = $this->courseId ? 'Eğitim güncellendi.' : 'Eğitim oluşturuldu.';
+            // ── Video Sync ──
+            $this->syncVideos($course);
+
+            // ── Soru Sync ──
+            $existingQuestionIds = [];
+            foreach ($this->questions as $index => $qData) {
+                $questionData = [
+                    'course_id' => $course->id,
+                    'question_text' => $qData['question_text'],
+                    'option_a' => $qData['option_a'],
+                    'option_b' => $qData['option_b'],
+                    'option_c' => $qData['option_c'],
+                    'option_d' => $qData['option_d'],
+                    'correct_option' => $qData['correct_option'],
+                    'sort_order' => $index + 1,
+                ];
+
+                if (!empty($qData['id'])) {
+                    $course->questions()->where('id', $qData['id'])->update($questionData);
+                    $existingQuestionIds[] = $qData['id'];
+                } else {
+                    $newQ = $course->questions()->create($questionData);
+                    $existingQuestionIds[] = $newQ->id;
+                    $this->questions[$index]['id'] = $newQ->id;
+                }
+            }
+
+            // Delete removed questions
+            $course->questions()->whereNotIn('id', $existingQuestionIds)->delete();
+
+            // ── Kaynak/Materyal Sync ──
+            $this->syncResources($course);
+
+            return [$course, $enrollmentCount];
+        });
+
+        $this->courseId = $course->id;
+
+        Cache::forget('admin.course_status_counts');
+
+        $message = $this->courseId ? __('lms.course_updated_msg') : __('lms.course_created_msg');
         if ($enrollmentCount > 0) {
-            $message .= " {$enrollmentCount} personele atandı.";
+            $message .= ' ' . __('lms.enrollment_added', ['count' => $enrollmentCount]);
         }
         session()->flash('success', $message);
 
@@ -402,49 +433,58 @@ class CourseForm extends Component
 
     private function syncEnrollments(Course $course): int
     {
-        $newEnrollments = 0;
+        $newEnrollments  = 0;
+        $targetIds       = collect($this->selectedPersonnel)->map(fn ($id) => (int) $id);
 
-        if (empty($this->selectedDepartments)) {
+        // Seçimden çıkarılan (henüz başlamamış) kayıtları sil
+        Enrollment::where('course_id', $course->id)
+            ->where('status', 'not_started')
+            ->when($targetIds->isNotEmpty(), fn ($q) => $q->whereNotIn('user_id', $targetIds))
+            ->when($targetIds->isEmpty(), fn ($q) => $q)
+            ->delete();
+
+        if ($targetIds->isEmpty()) {
             return $newEnrollments;
         }
 
-        $staffIds = User::where('is_active', true)
-            ->role('staff')
-            ->whereIn('department_id', $this->selectedDepartments)
-            ->pluck('id');
+        $existingIds = Enrollment::where('course_id', $course->id)
+            ->pluck('user_id')->map(fn ($id) => (int) $id);
 
-        $existingEnrollments = Enrollment::where('course_id', $course->id)
-            ->pluck('user_id');
+        $newIds = $targetIds->diff($existingIds);
 
-        $newStaffIds = $staffIds->diff($existingEnrollments);
-
-        foreach ($newStaffIds as $staffId) {
-            Enrollment::create([
-                'user_id' => $staffId,
-                'course_id' => $course->id,
-                'status' => 'not_started',
-                'current_attempt' => 1,
-            ]);
-
-            // E-posta bildirimi
-            $user = User::find($staffId);
-            $user?->notify(new CourseAssignedNotification($course));
-
-            $newEnrollments++;
+        if ($newIds->isEmpty()) {
+            return $newEnrollments;
         }
 
-        Enrollment::where('course_id', $course->id)
-            ->where('status', 'not_started')
-            ->whereNotIn('user_id', $staffIds)
-            ->delete();
+        // Bildirim için toplu yükle
+        $newUsers = User::whereIn('id', $newIds)->get()->keyBy('id');
+
+        foreach ($newIds as $userId) {
+            $enrollment = Enrollment::firstOrCreate(
+                ['user_id' => $userId, 'course_id' => $course->id],
+                ['status' => 'not_started', 'current_attempt' => 1]
+            );
+            if ($enrollment->wasRecentlyCreated) {
+                $newUsers[$userId]?->notify(new CourseAssignedNotification($course));
+                $newEnrollments++;
+            }
+        }
 
         return $newEnrollments;
     }
 
     public function render()
     {
-        $categories = Category::orderBy('name')->get();
-        $departments = Department::where('is_active', true)->orderBy('name')->get();
+        $categories  = Cache::remember('categories.all', now()->addHours(6),
+            fn () => Category::orderBy('name')->get()
+        );
+        $departments = Cache::remember('departments.all', now()->addHours(6),
+            fn () => Department::where('is_active', true)
+                ->with(['users' => fn ($q) => $q->where('is_active', true)->orderBy('first_name')])
+                ->withCount(['users as staff_count' => fn ($q) => $q->where('is_active', true)])
+                ->orderBy('name')
+                ->get()
+        );
 
         return view('livewire.admin.course-form', compact('categories', 'departments'));
     }

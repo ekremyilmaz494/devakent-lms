@@ -4,14 +4,16 @@ namespace App\Exports;
 
 use App\Models\Course;
 use Maatwebsite\Excel\Concerns\FromQuery;
+use Maatwebsite\Excel\Concerns\WithChunkReading;
 use Maatwebsite\Excel\Concerns\WithHeadings;
 use Maatwebsite\Excel\Concerns\WithMapping;
 use Maatwebsite\Excel\Concerns\WithStyles;
 use Maatwebsite\Excel\Concerns\WithTitle;
 use PhpOffice\PhpSpreadsheet\Worksheet\Worksheet;
 
-class CourseExport implements FromQuery, WithHeadings, WithMapping, WithTitle, WithStyles
+class CourseExport implements FromQuery, WithChunkReading, WithHeadings, WithMapping, WithTitle, WithStyles
 {
+    public function chunkSize(): int { return 500; }
     public function __construct(
         private string $search = '',
         private string $filterCategory = '',

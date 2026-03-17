@@ -5,6 +5,7 @@ namespace App\Livewire\Staff;
 use App\Models\CourseVideo;
 use App\Models\Enrollment;
 use App\Models\VideoProgress;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 
 class VideoPlayer extends Component
@@ -25,8 +26,11 @@ class VideoPlayer extends Component
         $this->enrollmentId = $enrollmentId;
         $this->courseVideoId = $courseVideoId;
 
-        $enrollment = Enrollment::findOrFail($enrollmentId);
+        $enrollment = Enrollment::where('user_id', auth()->id())
+            ->findOrFail($enrollmentId);
         $courseVideo = CourseVideo::findOrFail($courseVideoId);
+
+        abort_unless($courseVideo->course_id === $enrollment->course_id, 403);
 
         $this->videoTitle = $courseVideo->title;
         $this->videoPath = $courseVideo->video_path ?? '';
@@ -71,29 +75,40 @@ class VideoPlayer extends Component
         $enrollment = Enrollment::find($this->enrollmentId);
         $attemptNumber = $enrollment->current_attempt ?: 1;
 
-        $this->watchedSeconds = max($this->watchedSeconds, $watchedSeconds);
         $this->lastPosition = $currentPosition;
 
-        // Check if video is completed (watched at least 90% of total duration)
-        // totalSeconds=0 ise süre bilgisi henüz yok, otomatik tamamlama yapma
-        if ($this->totalSeconds > 0) {
-            $completionThreshold = $this->totalSeconds * 0.9;
-            $this->isCompleted = $this->watchedSeconds >= $completionThreshold;
-        }
+        DB::transaction(function () use ($attemptNumber, $watchedSeconds) {
+            $progress = VideoProgress::where('enrollment_id', $this->enrollmentId)
+                ->where('course_video_id', $this->courseVideoId)
+                ->where('attempt_number', $attemptNumber)
+                ->lockForUpdate()
+                ->first();
 
-        VideoProgress::updateOrCreate(
-            [
-                'enrollment_id' => $this->enrollmentId,
-                'course_video_id' => $this->courseVideoId,
-                'attempt_number' => $attemptNumber,
-            ],
-            [
+            // Take the max across component state, incoming value, and DB value (handles concurrent tabs)
+            $this->watchedSeconds = max($this->watchedSeconds, $watchedSeconds, $progress?->watched_seconds ?? 0);
+
+            // Check if video is completed (watched at least 90% of total duration)
+            if ($this->totalSeconds > 0) {
+                $this->isCompleted = $this->watchedSeconds >= $this->totalSeconds * 0.9;
+            }
+
+            $values = [
                 'watched_seconds' => $this->watchedSeconds,
                 'total_seconds' => $this->totalSeconds,
                 'is_completed' => $this->isCompleted,
                 'last_position' => $this->lastPosition,
-            ]
-        );
+            ];
+
+            if ($progress) {
+                $progress->update($values);
+            } else {
+                VideoProgress::create(array_merge([
+                    'enrollment_id' => $this->enrollmentId,
+                    'course_video_id' => $this->courseVideoId,
+                    'attempt_number' => $attemptNumber,
+                ], $values));
+            }
+        });
 
         if ($this->isCompleted) {
             $this->dispatch('videoCompleted');

@@ -14,6 +14,7 @@ class ReportExport implements FromArray, WithHeadings, WithTitle, WithStyles
         private array $data,
         private array $headings,
         private string $title,
+        private string $filterInfo = '',
     ) {}
 
     public function array(): array

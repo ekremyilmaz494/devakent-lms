@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Illuminate\Support\Facades\Process;
 
-class SettingsPanel extends Component
+class SettingsPanel extends AdminComponent
 {
     public string $activeTab = 'general';
 
@@ -84,7 +84,7 @@ class SettingsPanel extends Component
         SystemSetting::set('default_language', $this->default_language, $userId);
         SystemSetting::set('maintenance_mode', $this->maintenance_mode ? '1' : '0', $userId);
 
-        session()->flash('success', 'Genel ayarlar kaydedildi.');
+        session()->flash('success', __('lms.settings_general_saved'));
     }
 
     public function saveExam(): void
@@ -102,7 +102,7 @@ class SettingsPanel extends Component
         SystemSetting::set('shuffle_questions', $this->shuffle_questions ? '1' : '0', $userId);
         SystemSetting::set('show_results_immediately', $this->show_results_immediately ? '1' : '0', $userId);
 
-        session()->flash('success', 'Sınav varsayılanları kaydedildi.');
+        session()->flash('success', __('lms.settings_exam_saved'));
     }
 
     public function saveSecurity(): void
@@ -119,7 +119,7 @@ class SettingsPanel extends Component
         SystemSetting::set('force_password_change', $this->force_password_change ? '1' : '0', $userId);
         SystemSetting::set('password_min_length', $this->password_min_length, $userId);
 
-        session()->flash('success', 'Güvenlik ayarları kaydedildi.');
+        session()->flash('success', __('lms.settings_security_saved'));
     }
 
     public function saveEmail(): void
@@ -130,7 +130,7 @@ class SettingsPanel extends Component
         SystemSetting::set('email_on_certificate', $this->email_on_certificate ? '1' : '0', $userId);
         SystemSetting::set('email_weekly_report', $this->email_weekly_report ? '1' : '0', $userId);
 
-        session()->flash('success', 'E-posta bildirim ayarları kaydedildi.');
+        session()->flash('success', __('lms.settings_email_saved'));
     }
 
     // ── Backup Methods ──
@@ -166,9 +166,9 @@ class SettingsPanel extends Component
 
         if ($result->successful()) {
             file_put_contents($filepath, $result->output());
-            session()->flash('success', "Veritabanı yedeği oluşturuldu: {$filename}");
+            session()->flash('success', __('lms.backup_success', ['filename' => $filename]));
         } else {
-            session()->flash('error', 'Yedekleme başarısız oldu: ' . $result->errorOutput());
+            session()->flash('error', __('lms.backup_failed', ['error' => $result->errorOutput()]));
         }
     }
 
@@ -178,7 +178,7 @@ class SettingsPanel extends Component
         $path = storage_path('app/backups/' . $safeName);
 
         if (!file_exists($path) || !str_ends_with($safeName, '.sql')) {
-            session()->flash('error', 'Yedek dosyası bulunamadı.');
+            session()->flash('error', __('lms.backup_not_found'));
             return;
         }
 
@@ -202,9 +202,9 @@ class SettingsPanel extends Component
 
         if (file_exists($path) && str_ends_with($safeName, '.sql')) {
             unlink($path);
-            session()->flash('success', 'Yedek dosyası silindi.');
+            session()->flash('success', __('lms.backup_deleted'));
         } else {
-            session()->flash('error', 'Yedek dosyası bulunamadı.');
+            session()->flash('error', __('lms.backup_not_found'));
         }
 
         $this->showDeleteBackupModal = false;

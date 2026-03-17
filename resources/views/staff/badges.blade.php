@@ -10,19 +10,45 @@
 
 @section('content')
 <div class="space-y-6">
-    <div class="relative overflow-hidden rounded-xl bg-gradient-to-r from-amber-500 to-amber-700 dark:from-gray-800 dark:to-gray-900 dark:border dark:border-gray-700 shadow-lg">
-        <div class="relative p-6">
-            <h2 class="text-xl font-bold text-white">Rozetlerim</h2>
-            <p class="text-amber-100 dark:text-gray-400 mt-1 text-sm">Kazandığınız başarı rozetlerini görüntüleyin.</p>
+
+    {{-- Hero Banner --}}
+    <div class="relative overflow-hidden rounded-2xl bg-gradient-to-r from-amber-500 via-orange-500 to-amber-600 shadow-xl shadow-amber-500/20">
+        <div class="absolute -right-8 -top-8 w-40 h-40 rounded-full bg-white/10 blur-2xl"></div>
+        <div class="absolute right-16 bottom-0 w-28 h-28 rounded-full bg-white/10 blur-xl"></div>
+        <div class="relative px-6 py-7">
+            @php
+                $userBadges = auth()->user()->badges()->get();
+                $allBadges = \App\Models\Badge::where('is_active', true)->get();
+                $earnedCount = $userBadges->count();
+                $totalCount = $allBadges->count();
+            @endphp
+            <div class="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div class="flex-1">
+                    <div class="inline-flex items-center gap-2 mb-2 px-3 py-1 rounded-full bg-white/15 backdrop-blur-sm">
+                        <svg class="w-3.5 h-3.5 text-amber-200" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                        <span class="text-[11px] font-bold text-white/90 uppercase tracking-wide">Başarı Rozetleri</span>
+                    </div>
+                    <h2 class="text-2xl font-black text-white">{{ $earnedCount }} / {{ $totalCount }} rozet kazanıldı</h2>
+                    <p class="text-amber-100 mt-1 text-sm">Eğitimleri tamamlayarak yeni rozetler kazanın.</p>
+                </div>
+                <div class="flex-shrink-0 text-right">
+                    @php $badgePct = $totalCount > 0 ? round($earnedCount / $totalCount * 100) : 0; @endphp
+                    <span class="text-4xl font-black text-white">%{{ $badgePct }}</span>
+                    <p class="text-xs text-amber-100 mt-0.5">Tamamlanma oranı</p>
+                </div>
+            </div>
+            @if($totalCount > 0)
+            <div class="mt-5">
+                <div class="w-full h-2 bg-white/20 rounded-full overflow-hidden">
+                    <div class="h-full bg-white rounded-full transition-all duration-700" style="width: {{ $badgePct }}%"></div>
+                </div>
+            </div>
+            @endif
         </div>
     </div>
 
-    @php
-        $userBadges = auth()->user()->badges()->get();
-        $allBadges = \App\Models\Badge::where('is_active', true)->get();
-    @endphp
-
-    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+    {{-- Badge Grid --}}
+    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-3 sm:gap-4">
         @foreach($allBadges as $badge)
             @php
                 $earned = $userBadges->contains('id', $badge->id);
@@ -38,24 +64,56 @@
                 ];
                 $svg = $iconMap[$badge->icon] ?? $iconMap['star'];
             @endphp
-            <div class="bg-white dark:bg-gray-800 rounded-xl border {{ $earned ? 'border-amber-200 dark:border-amber-700' : 'border-gray-200 dark:border-gray-700 opacity-50' }} shadow-sm p-5 text-center transition-all hover:shadow-md">
-                <div class="w-14 h-14 mx-auto rounded-xl flex items-center justify-center mb-3 {{ $earned ? '' : 'grayscale' }}" style="background-color: {{ $badge->color }}20;">
-                    <svg class="w-7 h-7" style="color: {{ $badge->color }};" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $svg !!}</svg>
-                </div>
-                <h3 class="text-sm font-bold text-gray-800 dark:text-white">{{ $badge->name }}</h3>
-                <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1">{{ $badge->description }}</p>
+            <div class="group relative bg-white dark:bg-gray-800 rounded-2xl border transition-all duration-300
+                {{ $earned
+                    ? 'border-amber-200 dark:border-amber-700/50 shadow-md shadow-amber-500/10 hover:shadow-xl hover:shadow-amber-500/15 hover:-translate-y-0.5'
+                    : 'border-gray-100 dark:border-gray-700 opacity-50 hover:opacity-60' }}
+                p-5 text-center">
+
+                {{-- Earned glow --}}
                 @if($earned)
-                    <span class="inline-flex items-center gap-1 mt-2 px-2.5 py-1 rounded-full text-[10px] font-semibold bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">
-                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                        Kazanıldı
-                    </span>
+                <div class="absolute inset-0 rounded-2xl bg-gradient-to-br from-amber-400/5 to-orange-400/5 pointer-events-none"></div>
+                @endif
+
+                {{-- Icon --}}
+                <div class="relative w-16 h-16 mx-auto mb-3">
+                    <div class="w-16 h-16 rounded-2xl flex items-center justify-center {{ $earned ? '' : 'grayscale' }}"
+                         style="background: linear-gradient(135deg, {{ $badge->color }}22, {{ $badge->color }}44);">
+                        <svg class="w-8 h-8" style="color: {{ $badge->color }};" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            {!! $svg !!}
+                        </svg>
+                    </div>
+                    @if($earned)
+                    <div class="absolute -bottom-1 -right-1 w-5 h-5 bg-amber-400 rounded-full flex items-center justify-center shadow-md shadow-amber-400/50">
+                        <svg class="w-3 h-3 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"/></svg>
+                    </div>
+                    @endif
+                </div>
+
+                <h3 class="text-sm font-bold text-gray-800 dark:text-white leading-snug">{{ $badge->name }}</h3>
+                <p class="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-relaxed line-clamp-2">{{ $badge->description }}</p>
+
+                @if($earned)
+                    <div class="mt-3 pt-3 border-t border-amber-100 dark:border-amber-800/30">
+                        <span class="inline-flex items-center gap-1 text-[10px] font-bold text-amber-600 dark:text-amber-400">
+                            <svg class="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z"/></svg>
+                            Kazanıldı
+                            @if($earnedAt)
+                                &middot; {{ \Carbon\Carbon::parse($earnedAt)->format('d.m.Y') }}
+                            @endif
+                        </span>
+                    </div>
                 @else
-                    <span class="inline-block mt-2 px-2.5 py-1 rounded-full text-[10px] font-medium bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
-                        Kilitli
-                    </span>
+                    <div class="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700/50">
+                        <span class="inline-flex items-center gap-1 text-[10px] font-medium text-gray-400 dark:text-gray-500">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                            Kilitli
+                        </span>
+                    </div>
                 @endif
             </div>
         @endforeach
     </div>
+
 </div>
 @endsection

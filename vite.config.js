@@ -8,4 +8,12 @@ export default defineConfig({
             refresh: true,
         }),
     ],
+    build: {
+        rollupOptions: {
+            output: {
+                manualChunks: { vendor: ['alpinejs'] },
+            },
+        },
+        chunkSizeWarningLimit: 1000,
+    },
 });

@@ -19,18 +19,16 @@ class BadgeService
         $badges = Badge::where('is_active', true)->get();
 
         foreach ($badges as $badge) {
-            // Zaten kazanılmış mı?
-            if (UserBadge::where('user_id', $userId)->where('badge_id', $badge->id)->exists()) {
+            if (!$this->meetsCriterion($badge, $userId, $enrollment)) {
                 continue;
             }
 
-            if ($this->meetscriterion($badge, $userId, $enrollment)) {
-                UserBadge::create([
-                    'user_id' => $userId,
-                    'badge_id' => $badge->id,
-                    'enrollment_id' => $enrollment->id,
-                    'earned_at' => now(),
-                ]);
+            $userBadge = UserBadge::firstOrCreate(
+                ['user_id' => $userId, 'badge_id' => $badge->id],
+                ['enrollment_id' => $enrollment->id, 'earned_at' => now()]
+            );
+
+            if ($userBadge->wasRecentlyCreated) {
                 $awarded[] = $badge;
             }
         }

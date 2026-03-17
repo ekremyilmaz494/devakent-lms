@@ -98,218 +98,652 @@
     }
 }
 
-/* === Login Page === */
-.login-particles {
-    position: fixed;
-    inset: 0;
-    z-index: 0;
-    pointer-events: none;
+/* ═══════════════════════════════════════════
+   Login Card — Premium 21st-dev style
+   ═══════════════════════════════════════════ */
+
+/* ─── Card enter stagger ─── */
+.lc-enter {
+    opacity: 0;
+    transform: translateY(18px);
+    transition: opacity 0.55s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.55s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lc-enter--visible {
+    opacity: 1;
+    transform: translateY(0);
 }
 
-.floating-label-group {
+/* ─── Card base ─── */
+.lc-card {
     position: relative;
-}
-.floating-label-group input {
-    padding-top: 1.6rem;
-    padding-bottom: 0.4rem;
-}
-.floating-label-group label {
-    position: absolute;
-    left: 0.875rem;
-    top: 50%;
-    transform: translateY(-50%);
-    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
-    pointer-events: none;
-    transform-origin: left center;
-}
-.floating-label-group input:focus ~ label,
-.floating-label-group input:not(:placeholder-shown) ~ label {
-    top: 0.45rem;
-    transform: translateY(0) scale(0.75);
-    font-weight: 500;
-}
-
-/* Input hover/focus micro-interaction */
-.floating-label-group {
-    transition: transform 0.2s ease;
-}
-.floating-label-group:hover {
-    transform: scale(1.01);
-}
-.floating-label-group:focus-within {
-    transform: scale(1.02);
-}
-.floating-label-group input {
-    transition: border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease;
-}
-
-.tab-indicator {
-    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1),
-                background-color 0.3s ease;
-}
-
-/* ─── Login Card with Traveling Light Beam ─── */
-.login-card {
-    backdrop-filter: blur(20px) saturate(180%);
-    -webkit-backdrop-filter: blur(20px) saturate(180%);
-    position: relative;
+    border-radius: 1.25rem;
+    background: rgba(255,255,255,0.85);
+    border: 1px solid rgba(228,217,188,0.5);
+    box-shadow:
+        0 4px 6px -1px rgba(0,0,0,0.04),
+        0 20px 60px -10px rgba(0,0,0,0.12),
+        0 0 0 1px rgba(255,255,255,0.5) inset;
+    backdrop-filter: blur(24px) saturate(180%);
+    -webkit-backdrop-filter: blur(24px) saturate(180%);
     overflow: hidden;
+    transition: box-shadow 0.4s ease;
+    will-change: transform;
+}
+.dark .lc-card {
+    background: rgba(30,27,24,0.88);
+    border-color: rgba(68,64,60,0.5);
+    box-shadow:
+        0 4px 6px -1px rgba(0,0,0,0.2),
+        0 20px 60px -10px rgba(0,0,0,0.5),
+        0 0 0 1px rgba(255,255,255,0.04) inset;
+}
+.lc-card:hover {
+    box-shadow:
+        0 4px 6px -1px rgba(0,0,0,0.06),
+        0 30px 80px -10px rgba(0,0,0,0.18),
+        0 0 0 1px rgba(255,255,255,0.6) inset;
+}
+.dark .lc-card:hover {
+    box-shadow:
+        0 4px 6px -1px rgba(0,0,0,0.3),
+        0 30px 80px -10px rgba(0,0,0,0.6),
+        0 0 0 1px rgba(255,255,255,0.06) inset;
 }
 
-/* Traveling light beam around card border */
-.login-card::before {
-    content: '';
+/* ─── Spotlight overlay ─── */
+.lc-spotlight {
     position: absolute;
-    inset: -2px;
+    inset: 0;
+    pointer-events: none;
+    z-index: 2;
     border-radius: inherit;
-    padding: 2px;
+    transition: opacity 0.3s ease;
+    opacity: 0;
+}
+
+/* ─── Animated border beam ─── */
+.lc-border-beam {
+    position: absolute;
+    inset: -1px;
+    border-radius: inherit;
+    padding: 1px;
     background: conic-gradient(
-        from var(--beam-angle, 0deg),
+        from var(--lc-beam-angle, 0deg),
         transparent 0%,
-        transparent 70%,
-        rgb(var(--primary-500) / 0.6) 80%,
-        rgb(var(--primary-400) / 0.8) 85%,
-        rgb(var(--primary-500) / 0.6) 90%,
+        transparent 65%,
+        rgba(217,119,6,0.7) 75%,
+        rgba(245,158,11,1) 80%,
+        rgba(253,230,138,0.9) 82%,
+        rgba(245,158,11,0.8) 85%,
+        rgba(217,119,6,0.5) 90%,
         transparent 100%
     );
     -webkit-mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     mask: linear-gradient(#fff 0 0) content-box, linear-gradient(#fff 0 0);
     -webkit-mask-composite: xor;
     mask-composite: exclude;
-    animation: beam-rotate 4s linear infinite;
-    opacity: 0;
-    transition: opacity 0.5s ease;
+    animation: lc-beam-spin 5s linear infinite;
     pointer-events: none;
-    z-index: 1;
-}
-.login-card:hover::before {
-    opacity: 1;
+    z-index: 3;
 }
 
-@keyframes beam-rotate {
-    to { --beam-angle: 360deg; }
-}
-@property --beam-angle {
+@property --lc-beam-angle {
     syntax: '<angle>';
     initial-value: 0deg;
     inherits: false;
 }
-
-/* Corner glow spots */
-.login-card::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    border-radius: inherit;
-    pointer-events: none;
-    z-index: 0;
-    opacity: 0;
-    transition: opacity 0.6s ease;
-    background:
-        radial-gradient(120px 120px at 0% 0%, rgb(var(--primary-500) / 0.12), transparent),
-        radial-gradient(120px 120px at 100% 0%, rgb(var(--primary-400) / 0.08), transparent),
-        radial-gradient(120px 120px at 100% 100%, rgb(var(--primary-500) / 0.12), transparent),
-        radial-gradient(120px 120px at 0% 100%, rgb(var(--primary-400) / 0.08), transparent);
-}
-.login-card:hover::after {
-    opacity: 1;
-    animation: corner-pulse 3s ease-in-out infinite alternate;
+@keyframes lc-beam-spin {
+    to { --lc-beam-angle: 360deg; }
 }
 
-@keyframes corner-pulse {
-    0% { opacity: 0.6; }
-    100% { opacity: 1; }
-}
-
-/* ─── Button Shimmer ─── */
-@keyframes shimmer {
-    0% { background-position: -200% 0; }
-    100% { background-position: 200% 0; }
-}
-
-/* ─── Login Submit Button ─── */
-.login-submit-btn {
+/* ─── Logo ring ─── */
+.lc-logo-ring {
     position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0.45rem 0.65rem;
+    min-width: 3rem;
+    min-height: 2.75rem;
+    border-radius: 0.875rem;
+    background: linear-gradient(135deg, #fff8e7, #fef3c7);
+    border: 1px solid rgba(217,119,6,0.2);
+    box-shadow: 0 2px 10px -2px rgba(217,119,6,0.3), 0 0 0 3px rgba(245,158,11,0.06);
+}
+.dark .lc-logo-ring {
+    background: linear-gradient(135deg, #292524, #3c3531);
+    border-color: rgba(245,158,11,0.25);
+}
+
+/* ─── Dark mode toggle ─── */
+.lc-dark-btn {
+    position: relative;
+    width: 2.25rem;
+    height: 2.25rem;
+    border-radius: 0.625rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(241,233,218,0.8);
+    border: 1px solid rgba(228,217,188,0.6);
+    transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    cursor: pointer;
     overflow: hidden;
 }
-.login-submit-btn::after {
-    content: '';
+.dark .lc-dark-btn {
+    background: rgba(44,41,37,0.8);
+    border-color: rgba(68,64,60,0.6);
+}
+.lc-dark-btn:hover {
+    background: rgba(228,217,188,0.9);
+    transform: scale(1.08) rotate(10deg);
+    border-color: rgba(217,119,6,0.4);
+    box-shadow: 0 0 12px rgba(217,119,6,0.2);
+}
+.dark .lc-dark-btn:hover {
+    background: rgba(60,53,49,0.9);
+    border-color: rgba(245,158,11,0.4);
+    box-shadow: 0 0 12px rgba(245,158,11,0.2);
+}
+
+/* ─── Wave emoji ─── */
+.lc-wave {
+    display: inline-block;
+    animation: lc-wave-anim 2.5s ease-in-out infinite;
+    transform-origin: 70% 70%;
+}
+@keyframes lc-wave-anim {
+    0%, 60%, 100% { transform: rotate(0deg); }
+    10% { transform: rotate(14deg); }
+    20% { transform: rotate(-8deg); }
+    30% { transform: rotate(14deg); }
+    40% { transform: rotate(-4deg); }
+    50% { transform: rotate(10deg); }
+}
+
+/* ─── Role Tabs ─── */
+.lc-tabs {
+    position: relative;
+    display: flex;
+    background: rgba(241,233,218,0.7);
+    border: 1px solid rgba(228,217,188,0.6);
+    border-radius: 0.875rem;
+    padding: 4px;
+    gap: 0;
+}
+.dark .lc-tabs {
+    background: rgba(41,37,34,0.8);
+    border-color: rgba(68,64,60,0.5);
+}
+.lc-tabs__indicator {
+    position: absolute;
+    top: 4px;
+    bottom: 4px;
+    left: 4px;
+    width: calc(50% - 4px);
+    border-radius: 0.625rem;
+    transition: transform 0.35s cubic-bezier(0.34, 1.56, 0.64, 1),
+                background 0.35s ease;
+    box-shadow: 0 2px 8px -2px rgba(0,0,0,0.25);
+}
+.lc-tabs__btn {
+    position: relative;
+    z-index: 10;
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    padding: 0.6rem 0.75rem;
+    border-radius: 0.625rem;
+    transition: color 0.3s ease;
+    cursor: pointer;
+    user-select: none;
+}
+
+/* ─── Input Fields ─── */
+.lc-field {
+    position: relative;
+    display: flex;
+    align-items: center;
+    gap: 0;
+    border-radius: 0.75rem;
+    border: 1.5px solid rgba(228,217,188,0.8);
+    background: rgba(255,255,255,0.9);
+    transition: border-color 0.25s ease, box-shadow 0.25s ease, transform 0.2s ease;
+    overflow: hidden;
+}
+.dark .lc-field {
+    background: rgba(30,27,24,0.8);
+    border-color: rgba(68,64,60,0.7);
+}
+.lc-field:hover {
+    border-color: rgba(217,119,6,0.4);
+    transform: translateY(-1px);
+}
+.dark .lc-field:hover {
+    border-color: rgba(245,158,11,0.3);
+}
+.lc-field--focused {
+    border-color: rgba(217,119,6,0.7) !important;
+    box-shadow: 0 0 0 3px rgba(217,119,6,0.1), 0 4px 12px -3px rgba(217,119,6,0.15);
+    transform: translateY(-1px);
+}
+.dark .lc-field--focused {
+    border-color: rgba(245,158,11,0.7) !important;
+    box-shadow: 0 0 0 3px rgba(245,158,11,0.1), 0 4px 12px -3px rgba(245,158,11,0.12);
+}
+.lc-field__icon {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.75rem;
+    min-width: 2.75rem;
+    color: rgba(180,83,9,0.5);
+    transition: color 0.25s ease;
+}
+.dark .lc-field__icon {
+    color: rgba(245,158,11,0.4);
+}
+.lc-field--focused .lc-field__icon {
+    color: rgba(180,83,9,0.9);
+}
+.dark .lc-field--focused .lc-field__icon {
+    color: rgba(245,158,11,0.9);
+}
+.lc-field__glow {
     position: absolute;
     inset: 0;
-    background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.2) 50%, transparent 100%);
-    background-size: 200% 100%;
+    pointer-events: none;
     border-radius: inherit;
     opacity: 0;
     transition: opacity 0.3s ease;
 }
-.login-submit-btn:hover::after {
+.lc-field--focused .lc-field__glow {
     opacity: 1;
-    animation: shimmer 1.5s ease-in-out infinite;
+}
+.lc-field__glow--amber {
+    background: linear-gradient(90deg, rgba(245,158,11,0.04) 0%, transparent 60%);
+}
+.lc-field__glow--blue {
+    background: linear-gradient(90deg, rgba(59,130,246,0.04) 0%, transparent 60%);
 }
 
-/* ─── Animated Background Orbs ─── */
-.login-orb {
+/* ─── Input + Floating Label ─── */
+.lc-input {
+    width: 100%;
+    padding-top: 1.4rem;
+    padding-bottom: 0.35rem;
+    padding-right: 0.875rem;
+    background: transparent;
+    border: none;
+    outline: none;
+    box-shadow: none;
+    font-size: 0.875rem;
+    color: #1c1917;
+    transition: color 0.2s;
+}
+.lc-input:focus,
+.lc-input:focus-visible {
+    outline: none !important;
+    box-shadow: none !important;
+    border: none !important;
+}
+.dark .lc-input {
+    color: #f5f5f4;
+}
+.lc-label {
+    position: absolute;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    font-size: 0.875rem;
+    color: rgba(120,113,108,0.8);
+    pointer-events: none;
+    transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+    transform-origin: left center;
+}
+.lc-input:focus ~ .lc-label,
+.lc-input:not(:placeholder-shown) ~ .lc-label {
+    top: 0.4rem;
+    transform: translateY(0) scale(0.73);
+    font-weight: 500;
+    color: rgba(180,83,9,0.9);
+}
+.dark .lc-input:focus ~ .lc-label,
+.dark .lc-input:not(:placeholder-shown) ~ .lc-label {
+    color: rgba(245,158,11,0.9);
+}
+
+/* ─── Eye button ─── */
+.lc-eye-btn {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 2.5rem;
+    min-width: 2.5rem;
+    height: 100%;
+    color: rgba(120,113,108,0.6);
+    transition: color 0.2s ease;
+    cursor: pointer;
+}
+.lc-eye-btn:hover {
+    color: rgba(120,113,108,1);
+}
+
+/* ─── Checkbox ─── */
+.lc-checkbox-wrap {
+    position: relative;
+}
+.lc-checkbox {
+    width: 1rem;
+    height: 1rem;
+    border-radius: 0.25rem;
+    border: 1.5px solid rgba(180,83,9,0.3);
+    background: white;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s cubic-bezier(0.34, 1.56, 0.64, 1);
+    cursor: pointer;
+}
+.dark .lc-checkbox {
+    background: #292524;
+    border-color: rgba(245,158,11,0.3);
+}
+
+/* ─── Submit Button ─── */
+.lc-submit-btn {
+    position: relative;
+    width: 100%;
+    padding: 0.875rem 1.5rem;
+    border-radius: 0.875rem;
+    color: white;
+    font-weight: 600;
+    font-size: 0.9rem;
+    letter-spacing: 0.01em;
+    overflow: hidden;
+    cursor: pointer;
+    transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1),
+                box-shadow 0.3s ease,
+                background-position 0.5s ease;
+    background-size: 200% 100% !important;
+    background-position: 0% 0% !important;
+}
+.lc-submit-btn:hover:not(:disabled) {
+    transform: translateY(-2px) scale(1.01);
+    background-position: 100% 0% !important;
+}
+.lc-submit-btn:active:not(:disabled) {
+    transform: translateY(0) scale(0.98);
+}
+.lc-submit-btn:disabled {
+    cursor: not-allowed;
+    opacity: 0.85;
+}
+.lc-submit-btn__content {
+    position: relative;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    transition: opacity 0.2s ease;
+}
+.lc-submit-btn__spinner {
+    position: absolute;
+    inset: 0;
+    z-index: 2;
+    transition: opacity 0.2s ease;
+}
+/* Shimmer sweep */
+.lc-submit-btn__shimmer {
+    position: absolute;
+    inset: 0;
+    z-index: 1;
+    border-radius: inherit;
+    background: linear-gradient(
+        105deg,
+        transparent 30%,
+        rgba(255,255,255,0.25) 50%,
+        transparent 70%
+    );
+    background-size: 200% 100%;
+    background-position: -100% 0;
+    transition: background-position 0s;
+}
+.lc-submit-btn:hover:not(:disabled) .lc-submit-btn__shimmer {
+    animation: lc-shimmer-sweep 0.7s ease forwards;
+}
+@keyframes lc-shimmer-sweep {
+    from { background-position: -100% 0; }
+    to { background-position: 200% 0; }
+}
+
+/* Arrow nudge on hover */
+.lc-submit-arrow {
+    transition: transform 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+.lc-submit-btn:hover:not(:disabled) .lc-submit-arrow {
+    transform: translateX(4px);
+}
+
+/* ─── Legacy: keep old classes working ─── */
+.login-particles {
+    position: fixed;
+    inset: 0;
+    z-index: 0;
+    pointer-events: none;
+}
+.floating-label-group { position: relative; }
+.tab-indicator {
+    transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+/* ═══════════════════════════════════════════
+   Left Panel — Stat cards & bottom text
+   ═══════════════════════════════════════════ */
+
+@keyframes lp-subtle-zoom {
+    from { transform: scale(1.05); }
+    to   { transform: scale(1.12); }
+}
+
+/* Stat cards */
+.lp-stat-card {
+    display: flex;
+    align-items: center;
+    gap: 0.625rem;
+    padding: 0.625rem 0.875rem;
+    border-radius: 0.875rem;
+    background: rgba(0,0,0,0.35);
+    border: 1px solid rgba(255,255,255,0.1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    opacity: 0;
+    transform: translateX(20px);
+    transition: opacity 0.5s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+    min-width: 160px;
+}
+.lp-stat-card--visible {
+    opacity: 1;
+    transform: translateX(0);
+}
+.lp-stat-card:hover {
+    background: rgba(0,0,0,0.5);
+    border-color: rgba(255,255,255,0.18);
+    transform: translateX(-3px) scale(1.02) !important;
+}
+
+/* Bottom text entrance */
+.lp-bottom-enter {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.6s cubic-bezier(0.22, 1, 0.36, 1),
+                transform 0.6s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.lp-bottom-enter--visible {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+/* Feature badges */
+.lp-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.35rem 0.75rem;
+    border-radius: 9999px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid rgba(255,255,255,0.15);
+    color: rgba(255,255,255,0.7);
+    font-size: 0.75rem;
+    font-weight: 500;
+    backdrop-filter: blur(8px);
+    transition: all 0.25s ease;
+}
+.lp-badge:hover {
+    background: rgba(255,255,255,0.14);
+    border-color: rgba(245,158,11,0.5);
+    color: rgba(255,255,255,0.9);
+    transform: translateY(-2px);
+}
+
+/* ─── Aurora Animated Background (Right Login Panel) ─── */
+.aurora-blob {
     position: absolute;
     border-radius: 50%;
     pointer-events: none;
-    filter: blur(60px);
-    will-change: transform;
+    filter: blur(90px);
+    will-change: transform, opacity;
+    mix-blend-mode: normal;
 }
 
-.login-orb--1 {
-    width: 350px;
-    height: 350px;
-    top: -10%;
-    right: -15%;
-    background: radial-gradient(circle, rgba(217,119,6,0.18) 0%, rgba(245,158,11,0.08) 60%, transparent 100%);
-    animation: orb-float-1 12s ease-in-out infinite;
+/* Blob 1 — top-right spinning conic */
+.aurora-blob--1 {
+    width: 520px;
+    height: 520px;
+    top: -18%;
+    right: -12%;
+    background: conic-gradient(
+        from 0deg at 50% 50%,
+        rgba(245,158,11,0.38)  0deg,
+        rgba(251,191,36,0.22) 60deg,
+        rgba(217,119,6,0.32) 130deg,
+        transparent           200deg,
+        rgba(252,211,77,0.18) 290deg,
+        rgba(245,158,11,0.38) 360deg
+    );
+    animation: aurora-spin-1 20s linear infinite;
 }
-.dark .login-orb--1 {
-    background: radial-gradient(circle, rgba(249,115,22,0.15) 0%, rgba(251,146,60,0.06) 60%, transparent 100%);
-}
-
-.login-orb--2 {
-    width: 280px;
-    height: 280px;
-    bottom: -5%;
-    left: -10%;
-    background: radial-gradient(circle, rgba(180,83,9,0.15) 0%, rgba(217,119,6,0.06) 60%, transparent 100%);
-    animation: orb-float-2 15s ease-in-out infinite;
-}
-.dark .login-orb--2 {
-    background: radial-gradient(circle, rgba(251,146,60,0.12) 0%, rgba(249,115,22,0.05) 60%, transparent 100%);
-}
-
-.login-orb--3 {
-    width: 200px;
-    height: 200px;
-    top: 40%;
-    left: 50%;
-    transform: translateX(-50%);
-    background: radial-gradient(circle, rgba(252,211,77,0.12) 0%, rgba(251,191,36,0.04) 60%, transparent 100%);
-    animation: orb-float-3 10s ease-in-out infinite;
-}
-.dark .login-orb--3 {
-    background: radial-gradient(circle, rgba(253,186,116,0.1) 0%, rgba(251,146,60,0.04) 60%, transparent 100%);
+.dark .aurora-blob--1 {
+    background: conic-gradient(
+        from 0deg at 50% 50%,
+        rgba(251,146,60,0.35)  0deg,
+        rgba(249,115,22,0.22) 80deg,
+        rgba(234,88,12,0.28)  160deg,
+        transparent           230deg,
+        rgba(251,146,60,0.2)  310deg,
+        rgba(251,146,60,0.35) 360deg
+    );
 }
 
-@keyframes orb-float-1 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    25% { transform: translate(-30px, 20px) scale(1.05); }
-    50% { transform: translate(-10px, 40px) scale(0.95); }
-    75% { transform: translate(20px, 15px) scale(1.08); }
+/* Blob 2 — bottom-left counter-spinning */
+.aurora-blob--2 {
+    width: 460px;
+    height: 460px;
+    bottom: -18%;
+    left: -14%;
+    background: conic-gradient(
+        from 180deg at 50% 50%,
+        rgba(180,83,9,0.32)   0deg,
+        rgba(217,119,6,0.2)   90deg,
+        transparent           170deg,
+        rgba(245,158,11,0.22) 270deg,
+        rgba(180,83,9,0.32)   360deg
+    );
+    animation: aurora-spin-2 26s linear infinite reverse;
+}
+.dark .aurora-blob--2 {
+    background: conic-gradient(
+        from 180deg at 50% 50%,
+        rgba(249,115,22,0.28)  0deg,
+        rgba(234,88,12,0.18)  100deg,
+        transparent            180deg,
+        rgba(251,146,60,0.22) 280deg,
+        rgba(249,115,22,0.28) 360deg
+    );
 }
 
-@keyframes orb-float-2 {
-    0%, 100% { transform: translate(0, 0) scale(1); }
-    33% { transform: translate(25px, -30px) scale(1.1); }
-    66% { transform: translate(-15px, -15px) scale(0.92); }
+/* Blob 3 — mid-right radial pulse */
+.aurora-blob--3 {
+    width: 320px;
+    height: 320px;
+    top: 28%;
+    right: 5%;
+    background: radial-gradient(ellipse at center,
+        rgba(252,211,77,0.28) 0%,
+        rgba(251,191,36,0.14) 45%,
+        transparent 70%
+    );
+    animation: aurora-pulse-1 9s ease-in-out infinite;
+}
+.dark .aurora-blob--3 {
+    background: radial-gradient(ellipse at center,
+        rgba(253,186,116,0.22) 0%,
+        rgba(251,146,60,0.1)   45%,
+        transparent 70%
+    );
 }
 
-@keyframes orb-float-3 {
-    0%, 100% { transform: translateX(-50%) translate(0, 0) scale(1); }
-    30% { transform: translateX(-50%) translate(20px, -25px) scale(1.15); }
-    60% { transform: translateX(-50%) translate(-20px, 15px) scale(0.9); }
+/* Blob 4 — top-left small accent */
+.aurora-blob--4 {
+    width: 240px;
+    height: 240px;
+    top: 8%;
+    left: 18%;
+    background: radial-gradient(ellipse at center,
+        rgba(245,158,11,0.22) 0%,
+        rgba(217,119,6,0.09)  50%,
+        transparent 75%
+    );
+    animation: aurora-pulse-2 13s ease-in-out infinite;
+}
+.dark .aurora-blob--4 {
+    background: radial-gradient(ellipse at center,
+        rgba(251,146,60,0.18) 0%,
+        rgba(249,115,22,0.07) 50%,
+        transparent 75%
+    );
+}
+
+@keyframes aurora-spin-1 {
+    0%   { transform: rotate(0deg)   scale(1); }
+    25%  { transform: rotate(90deg)  scale(1.12); }
+    50%  { transform: rotate(180deg) scale(0.88); }
+    75%  { transform: rotate(270deg) scale(1.08); }
+    100% { transform: rotate(360deg) scale(1); }
+}
+
+@keyframes aurora-spin-2 {
+    0%   { transform: rotate(0deg)   scale(1)    translate(0, 0); }
+    33%  { transform: rotate(120deg) scale(1.18) translate(18px, -22px); }
+    66%  { transform: rotate(240deg) scale(0.82) translate(-14px, 16px); }
+    100% { transform: rotate(360deg) scale(1)    translate(0, 0); }
+}
+
+@keyframes aurora-pulse-1 {
+    0%, 100% { transform: scale(1)    translate(0, 0);    opacity: 0.65; }
+    35%       { transform: scale(1.35) translate(-22px, -28px); opacity: 0.9; }
+    65%       { transform: scale(0.78) translate(22px, 18px);   opacity: 0.5; }
+}
+
+@keyframes aurora-pulse-2 {
+    0%, 100% { transform: scale(1)    translate(0, 0);    opacity: 0.55; }
+    42%       { transform: scale(1.45) translate(14px, -18px); opacity: 0.82; }
+    72%       { transform: scale(0.72) translate(-12px, 22px);  opacity: 0.38; }
 }
 
 /* Subtle grid pattern */

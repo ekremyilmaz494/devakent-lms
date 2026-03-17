@@ -17,12 +17,16 @@ class SystemSetting extends Model
         return $this->belongsTo(User::class, 'updated_by');
     }
 
+    public static function getAllCached(): \Illuminate\Support\Collection
+    {
+        return Cache::remember('settings.all', 3600, function () {
+            return static::pluck('value', 'key');
+        });
+    }
+
     public static function get(string $key, mixed $default = null): mixed
     {
-        return Cache::remember("setting.{$key}", 3600, function () use ($key, $default) {
-            $setting = static::where('key', $key)->first();
-            return $setting ? $setting->value : $default;
-        });
+        return static::getAllCached()->get($key, $default);
     }
 
     public static function set(string $key, mixed $value, ?int $userId = null): void
@@ -31,6 +35,6 @@ class SystemSetting extends Model
             ['key' => $key],
             ['value' => $value, 'updated_by' => $userId]
         );
-        Cache::forget("setting.{$key}");
+        Cache::forget('settings.all');
     }
 }

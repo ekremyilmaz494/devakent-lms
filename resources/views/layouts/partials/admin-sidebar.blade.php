@@ -1,4 +1,7 @@
-<aside class="flex flex-col w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen">
+<aside class="fixed inset-y-0 left-0 z-50 flex flex-col w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700
+              transform transition-transform duration-300 ease-in-out
+              lg:static lg:translate-x-0"
+      :class="sidebarOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'">
     {{-- Logo --}}
     <div class="flex items-center h-16 px-5 border-b border-gray-100 dark:border-gray-700">
         <div class="flex items-center space-x-3">
@@ -15,11 +18,25 @@
     </div>
 
     {{-- Navigation --}}
-    <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto" x-data="{ openMenu: '{{ request()->routeIs('admin.courses.*') ? 'courses' : (request()->routeIs('admin.staff.*') ? 'staff' : '') }}' }">
+    <nav class="flex-1 px-3 py-4 space-y-0.5 overflow-y-auto"
+         x-data="{
+             openMenu: '',
+             updateMenu() {
+                 this.$nextTick(() => {
+                     const p = window.location.pathname;
+                     if (p.includes('/courses') || p.includes('/categories')) this.openMenu = 'courses';
+                     else if (p.includes('/staff') || p.includes('/departments')) this.openMenu = 'staff';
+                     else this.openMenu = '';
+                 });
+             }
+         }"
+         x-init="updateMenu()"
+         @popstate.window="updateMenu()"
+         x-on:livewire:navigated.window="updateMenu()">
 
         {{-- Dashboard --}}
         @php $isDashboard = request()->routeIs('admin.dashboard'); @endphp
-        <a href="{{ route('admin.dashboard') }}"
+        <a href="{{ route('admin.dashboard') }}" wire:navigate
            class="flex items-center px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 group {{ $isDashboard ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white' }}">
             <svg class="w-[18px] h-[18px] flex-shrink-0 {{ $isDashboard ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 16a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3zM14 13a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1v-6z" />
@@ -29,7 +46,7 @@
 
         {{-- Eğitimler (Expandable) --}}
         <div>
-            @php $isCourses = request()->routeIs('admin.courses.*'); @endphp
+            @php $isCourses = request()->routeIs('admin.courses.*') || request()->routeIs('admin.categories.*'); @endphp
             <button @click="openMenu = openMenu === 'courses' ? '' : 'courses'"
                 class="flex items-center justify-between w-full px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 group {{ $isCourses ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white' }}">
                 <div class="flex items-center">
@@ -41,9 +58,8 @@
                 <svg class="w-4 h-4 transition-transform duration-200" :class="openMenu === 'courses' ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
             </button>
             <div x-show="openMenu === 'courses'" x-collapse class="ml-8 mt-0.5 space-y-0.5">
-                <a href="{{ route('admin.courses.index') }}" class="block px-3 py-2 rounded-lg text-[13px] transition-colors {{ request()->routeIs('admin.courses.index') ? 'text-primary-700 dark:text-primary-300 font-medium' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300' }}">{{ __('lms.course_list') }}</a>
-                <a href="{{ route('admin.courses.create') }}" class="block px-3 py-2 rounded-lg text-[13px] transition-colors {{ request()->routeIs('admin.courses.create') ? 'text-primary-700 dark:text-primary-300 font-medium' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300' }}">{{ __('lms.new_course') }}</a>
-                <a href="{{ route('admin.categories.index') }}" class="block px-3 py-2 rounded-lg text-[13px] transition-colors {{ request()->routeIs('admin.categories.*') ? 'text-primary-700 dark:text-primary-300 font-medium' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300' }}">{{ __('lms.categories') }}</a>
+                <a href="{{ route('admin.courses.index') }}" wire:navigate class="block px-3 py-2 rounded-lg text-[13px] transition-colors {{ request()->routeIs('admin.courses.index') ? 'text-primary-700 dark:text-primary-300 font-medium' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300' }}">{{ __('lms.course_list') }}</a>
+                <a href="{{ route('admin.categories.index') }}" wire:navigate class="block px-3 py-2 rounded-lg text-[13px] transition-colors {{ request()->routeIs('admin.categories.*') ? 'text-primary-700 dark:text-primary-300 font-medium' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300' }}">{{ __('lms.categories') }}</a>
             </div>
         </div>
 
@@ -61,14 +77,14 @@
                 <svg class="w-4 h-4 transition-transform duration-200" :class="openMenu === 'staff' ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" /></svg>
             </button>
             <div x-show="openMenu === 'staff'" x-collapse class="ml-8 mt-0.5 space-y-0.5">
-                <a href="{{ route('admin.staff.index') }}" class="block px-3 py-2 rounded-lg text-[13px] transition-colors {{ request()->routeIs('admin.staff.*') ? 'text-primary-700 dark:text-primary-300 font-medium' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300' }}">{{ __('lms.staff_list') }}</a>
-                <a href="{{ route('admin.departments.index') }}" class="block px-3 py-2 rounded-lg text-[13px] transition-colors {{ request()->routeIs('admin.departments.*') ? 'text-primary-700 dark:text-primary-300 font-medium' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300' }}">{{ __('lms.departments') }}</a>
+                <a href="{{ route('admin.staff.index') }}" wire:navigate class="block px-3 py-2 rounded-lg text-[13px] transition-colors {{ request()->routeIs('admin.staff.index') ? 'text-primary-700 dark:text-primary-300 font-medium' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300' }}">{{ __('lms.staff_list') }}</a>
+                <a href="{{ route('admin.departments.index') }}" wire:navigate class="block px-3 py-2 rounded-lg text-[13px] transition-colors {{ request()->routeIs('admin.departments.*') ? 'text-primary-700 dark:text-primary-300 font-medium' : 'text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-300' }}">{{ __('lms.departments') }}</a>
             </div>
         </div>
 
         {{-- Raporlar --}}
         @php $isReports = request()->routeIs('admin.reports.*'); @endphp
-        <a href="{{ route('admin.reports.index') }}"
+        <a href="{{ route('admin.reports.index') }}" wire:navigate
            class="flex items-center px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 group {{ $isReports ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white' }}">
             <svg class="w-[18px] h-[18px] flex-shrink-0 {{ $isReports ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
@@ -78,7 +94,7 @@
 
         {{-- Bildirimler --}}
         @php $isNotifications = request()->routeIs('admin.notifications.*'); @endphp
-        <a href="{{ route('admin.notifications.index') }}"
+        <a href="{{ route('admin.notifications.index') }}" wire:navigate
            class="flex items-center px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 group {{ $isNotifications ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white' }}">
             <svg class="w-[18px] h-[18px] flex-shrink-0 {{ $isNotifications ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
@@ -93,7 +109,7 @@
         {{-- Settings & Activity Log --}}
         <div class="px-3 py-2 space-y-0.5">
             @php $isActivityLog = request()->routeIs('admin.activity-log.*'); @endphp
-            <a href="{{ route('admin.activity-log.index') }}"
+            <a href="{{ route('admin.activity-log.index') }}" wire:navigate
                class="flex items-center px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 group {{ $isActivityLog ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-700 dark:hover:text-gray-300' }}">
                 <svg class="w-[18px] h-[18px] flex-shrink-0 {{ $isActivityLog ? 'text-primary-500' : 'text-gray-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
@@ -102,7 +118,7 @@
             </a>
 
             @php $isSettings = request()->routeIs('admin.settings.*'); @endphp
-            <a href="{{ route('admin.settings.index') }}"
+            <a href="{{ route('admin.settings.index') }}" wire:navigate
                class="flex items-center px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 group {{ $isSettings ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'text-gray-500 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-700 dark:hover:text-gray-300' }}">
                 <svg class="w-[18px] h-[18px] flex-shrink-0 {{ $isSettings ? 'text-primary-500' : 'text-gray-400' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />

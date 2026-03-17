@@ -4,12 +4,13 @@ namespace App\Livewire\Admin;
 
 use App\Models\Department;
 use App\Models\Notification;
+use App\Models\NotificationRecipient;
 use App\Models\User;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-class NotificationManager extends Component
+class NotificationManager extends AdminComponent
 {
     use WithPagination;
 
@@ -31,17 +32,32 @@ class NotificationManager extends Component
         ];
     }
 
-    protected $messages = [
-        'title.required' => 'Başlık zorunludur.',
-        'title.max' => 'Başlık en fazla 100 karakter olabilir.',
-        'message.required' => 'Mesaj zorunludur.',
-        'message.max' => 'Mesaj en fazla 500 karakter olabilir.',
-        'target_department_id.required_if' => 'Departman seçimi zorunludur.',
-    ];
+    protected function messages(): array
+    {
+        return [
+            'title.required'                   => __('lms.val_notif_title'),
+            'title.max'                        => __('lms.val_notif_title_max'),
+            'message.required'                 => __('lms.val_notif_message'),
+            'message.max'                      => __('lms.val_notif_message_max'),
+            'target_department_id.required_if' => __('lms.val_notif_dept'),
+        ];
+    }
 
     public function send(): void
     {
         $this->validate();
+
+        // Aynı admin tarafından son 10 saniye içinde aynı başlık + hedef ile gönderim yapılmışsa engelle
+        $recentDuplicate = Notification::where('created_by', Auth::id())
+            ->where('title', $this->title)
+            ->where('target_type', $this->target_type)
+            ->where('created_at', '>=', now()->subSeconds(10))
+            ->exists();
+
+        if ($recentDuplicate) {
+            session()->flash('error', __('lms.notification_duplicate'));
+            return;
+        }
 
         $notification = Notification::create([
             'title' => $this->title,
@@ -60,11 +76,14 @@ class NotificationManager extends Component
 
         $recipients = $query->pluck('id');
 
-        foreach ($recipients as $userId) {
-            $notification->recipients()->create([
-                'user_id' => $userId,
-                'is_read' => false,
-            ]);
+        $rows = $recipients->map(fn ($userId) => [
+            'notification_id' => $notification->id,
+            'user_id'         => $userId,
+            'is_read'         => false,
+        ])->all();
+
+        foreach (array_chunk($rows, 500) as $chunk) {
+            NotificationRecipient::insert($chunk);
         }
 
         $this->reset(['title', 'message']);
@@ -72,7 +91,7 @@ class NotificationManager extends Component
         $this->target_type = 'all';
         $this->target_department_id = null;
 
-        session()->flash('success', $recipients->count() . ' kişiye bildirim gönderildi.');
+        session()->flash('success', __('lms.notification_sent_msg', ['count' => $recipients->count()]));
     }
 
     public function render()

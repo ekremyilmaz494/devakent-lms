@@ -2,11 +2,12 @@
 
 namespace App\Livewire\Admin;
 
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Spatie\Activitylog\Models\Activity;
 
-class ActivityLogViewer extends Component
+class ActivityLogViewer extends AdminComponent
 {
     use WithPagination;
 
@@ -36,7 +37,7 @@ class ActivityLogViewer extends Component
             ->when($this->search, function ($q) {
                 $q->where(function ($q) {
                     $q->where('description', 'like', "%{$this->search}%")
-                      ->orWhereHasMorph('causer', '*', function ($q) {
+                      ->orWhereHasMorph('causer', [\App\Models\User::class], function ($q) {
                           $q->where('first_name', 'like', "%{$this->search}%")
                             ->orWhere('last_name', 'like', "%{$this->search}%")
                             ->orWhere('email', 'like', "%{$this->search}%");
@@ -48,25 +49,17 @@ class ActivityLogViewer extends Component
             ->latest()
             ->paginate(20);
 
-        $modelLabels = [
-            'User' => 'Personel',
-            'Department' => 'Departman',
-            'Category' => 'Kategori',
-            'Course' => 'Eğitim',
-            'Enrollment' => 'Kayıt',
-            'Question' => 'Soru',
-            'CourseVideo' => 'Video',
-            'Certificate' => 'Sertifika',
-            'Notification' => 'Bildirim',
-            'VideoProgress' => 'Video İlerlemesi',
-            'ExamAttempt' => 'Sınav Denemesi',
-        ];
+        $langModelLabels = __('lms.activity_log_models');
 
-        $subjectTypes = Activity::distinct()
-            ->whereNotNull('subject_type')
-            ->pluck('subject_type')
-            ->mapWithKeys(fn ($type) => [$type => $modelLabels[class_basename($type)] ?? class_basename($type)])
-            ->toArray();
+        // Eskisi: her render'da tam tablo taraması
+        // Yenisi: 1 saat cache — dil değişiminde cache'i temizle
+        $subjectTypes = Cache::remember('activity_log.subject_types.' . app()->getLocale(), 3600, function () use ($langModelLabels) {
+            return Activity::distinct()
+                ->whereNotNull('subject_type')
+                ->pluck('subject_type')
+                ->mapWithKeys(fn ($type) => [$type => $langModelLabels[$type] ?? class_basename($type)])
+                ->toArray();
+        });
 
         return view('livewire.admin.activity-log-viewer', compact('activities', 'subjectTypes'));
     }

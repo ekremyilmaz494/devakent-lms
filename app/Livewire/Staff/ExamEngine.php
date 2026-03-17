@@ -24,7 +24,9 @@ class ExamEngine extends Component
         $this->enrollmentId = $enrollmentId;
         $this->examType = $examType;
 
-        $enrollment = Enrollment::with('course.questions')->findOrFail($enrollmentId);
+        $enrollment = Enrollment::with('course.questions')
+            ->where('user_id', auth()->id())
+            ->findOrFail($enrollmentId);
         $course = $enrollment->course;
 
         $this->timeRemaining = ($course->exam_duration_minutes ?? 30) * 60;

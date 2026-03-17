@@ -15,7 +15,7 @@ use Illuminate\Support\Facades\Hash;
 use Illuminate\Validation\Rule;
 use Maatwebsite\Excel\Facades\Excel;
 
-class StaffTable extends Component
+class StaffTable extends AdminComponent
 {
     use WithPagination, WithFileUploads;
 
@@ -61,27 +61,29 @@ class StaffTable extends Component
             'first_name' => 'required|string|max:100',
             'last_name' => 'required|string|max:100',
             'email' => ['required', 'email', 'max:255', Rule::unique('users', 'email')->ignore($this->editingId)],
-            'password' => $this->editingId ? 'nullable|string|min:8|regex:/[A-Z]/|regex:/[0-9]/' : 'required|string|min:8|regex:/[A-Z]/|regex:/[0-9]/',
+            'password' => $this->editingId ? 'nullable|string|min:6' : 'required|string|min:6',
             'phone' => 'nullable|string|max:20',
             'registration_number' => ['nullable', 'string', 'max:50', Rule::unique('users', 'registration_number')->ignore($this->editingId)],
             'title' => 'nullable|string|max:100',
-            'department_id' => 'required|exists:departments,id',
+            'department_id' => 'required|exists:departments,id,is_active,1',
             'hire_date' => 'nullable|date',
             'is_active' => 'boolean',
         ];
     }
 
-    protected $messages = [
-        'first_name.required' => 'Ad alanı zorunludur.',
-        'last_name.required' => 'Soyad alanı zorunludur.',
-        'email.required' => 'E-posta alanı zorunludur.',
-        'email.unique' => 'Bu e-posta adresi zaten kullanılıyor.',
-        'password.required' => 'Şifre alanı zorunludur.',
-        'password.min' => 'Şifre en az 8 karakter olmalıdır.',
-        'password.regex' => 'Şifre en az 1 büyük harf ve 1 rakam içermelidir.',
-        'registration_number.unique' => 'Bu sicil numarası zaten kullanılıyor.',
-        'department_id.required' => 'Departman seçimi zorunludur.',
-    ];
+    protected function messages(): array
+    {
+        return [
+            'first_name.required'          => __('lms.val_name_required'),
+            'last_name.required'           => __('lms.val_name_required'),
+            'email.required'               => __('lms.val_email_required'),
+            'email.unique'                 => __('lms.val_email_unique'),
+            'password.required'            => __('lms.val_password_required'),
+            'password.min'                 => __('lms.val_password_min', ['min' => 6]),
+            'registration_number.unique'   => __('lms.val_registration_unique'),
+            'department_id.required'       => __('lms.val_department_required'),
+        ];
+    }
 
     public function updatingSearch(): void
     {
@@ -115,17 +117,17 @@ class StaffTable extends Component
         $this->validate([
             'importFile' => 'required|file|mimes:xlsx,xls,csv|max:10240',
         ], [
-            'importFile.required' => 'Lütfen bir Excel dosyası seçin.',
-            'importFile.mimes' => 'Dosya xlsx, xls veya csv formatında olmalıdır.',
-            'importFile.max' => 'Dosya en fazla 10MB olabilir.',
+            'importFile.required' => __('lms.val_import_required'),
+            'importFile.mimes'    => __('lms.val_import_mimes'),
+            'importFile.max'      => __('lms.val_import_max'),
         ]);
 
         $import = new StaffImport();
         Excel::import($import, $this->importFile->getRealPath());
 
-        $message = "{$import->imported} personel başarıyla aktarıldı.";
+        $message = __('lms.staff_imported', ['count' => $import->imported]);
         if ($import->skipped > 0) {
-            $message .= " {$import->skipped} satır atlandı.";
+            $message .= ' ' . __('lms.staff_imported_skipped', ['skipped' => $import->skipped]);
         }
 
         if (count($import->errors) > 0) {
@@ -178,12 +180,12 @@ class StaffTable extends Component
         if ($this->editingId) {
             $user = User::findOrFail($this->editingId);
             $user->update($data);
-            session()->flash('success', 'Personel bilgileri güncellendi.');
+            session()->flash('success', __('lms.staff_updated'));
         } else {
             $data['email_verified_at'] = now();
             $user = User::create($data);
             $user->assignRole('staff');
-            session()->flash('success', 'Yeni personel oluşturuldu.');
+            session()->flash('success', __('lms.staff_created'));
         }
 
         $this->showModal = false;
@@ -207,13 +209,13 @@ class StaffTable extends Component
         $user = User::findOrFail($this->deletingId);
 
         if ($user->enrollments()->count() > 0) {
-            session()->flash('error', 'Bu personelin kayıtlı eğitimleri bulunmaktadır. Önce eğitim kayıtlarını kaldırın.');
+            session()->flash('error', __('lms.cannot_delete_has_enrollments'));
             $this->showDeleteModal = false;
             return;
         }
 
         $user->delete(); // SoftDelete
-        session()->flash('success', 'Personel silindi.');
+        session()->flash('success', __('lms.staff_deleted'));
         $this->showDeleteModal = false;
         $this->deletingId = null;
     }
@@ -222,7 +224,7 @@ class StaffTable extends Component
     {
         $user = User::findOrFail($id);
         $user->update(['is_active' => !$user->is_active]);
-        session()->flash('success', $user->is_active ? 'Personel aktif edildi.' : 'Personel pasif edildi.');
+        session()->flash('success', $user->is_active ? __('lms.staff_activated') : __('lms.staff_deactivated'));
     }
 
     private function resetForm(): void
@@ -269,7 +271,7 @@ class StaffTable extends Component
     public function bulkActivate(): void
     {
         User::whereIn('id', $this->selectedStaff)->update(['is_active' => true]);
-        session()->flash('success', count($this->selectedStaff) . ' personel aktif edildi.');
+        session()->flash('success', __('lms.staff_bulk_activated', ['count' => count($this->selectedStaff)]));
         $this->selectedStaff = [];
         $this->selectAll = false;
     }
@@ -277,7 +279,7 @@ class StaffTable extends Component
     public function bulkDeactivate(): void
     {
         User::whereIn('id', $this->selectedStaff)->update(['is_active' => false]);
-        session()->flash('success', count($this->selectedStaff) . ' personel pasif edildi.');
+        session()->flash('success', __('lms.staff_bulk_deactivated', ['count' => count($this->selectedStaff)]));
         $this->selectedStaff = [];
         $this->selectAll = false;
     }
@@ -302,9 +304,10 @@ class StaffTable extends Component
             $deleted++;
         }
 
-        $message = "{$deleted} personel silindi.";
         if ($skipped > 0) {
-            $message .= " {$skipped} personel eğitim kaydı nedeniyle silinemedi.";
+            $message = __('lms.staff_bulk_deleted', ['count' => $deleted, 'skipped' => $skipped]);
+        } else {
+            $message = __('lms.staff_bulk_deleted_clean', ['count' => $deleted]);
         }
         session()->flash('success', $message);
         $this->selectedStaff = [];
@@ -315,6 +318,11 @@ class StaffTable extends Component
     // ── Export ──
     public function exportExcel()
     {
+        if ($this->getFilteredQuery()->doesntExist()) {
+            session()->flash('warning', __('lms.no_export_data'));
+            return;
+        }
+
         return Excel::download(
             new StaffExport($this->search, $this->filterDepartment, $this->filterStatus),
             'personeller_' . date('Y-m-d') . '.xlsx'
@@ -323,6 +331,11 @@ class StaffTable extends Component
 
     public function exportPdf()
     {
+        if ($this->getFilteredQuery()->doesntExist()) {
+            session()->flash('warning', __('lms.no_export_data'));
+            return;
+        }
+
         $staff = $this->getFilteredQuery()
             ->with('department')
             ->withCount([
@@ -375,8 +388,8 @@ class StaffTable extends Component
         $totalStaff = User::role('staff')->count();
         $departments = Department::where('is_active', true)->orderBy('name')->get();
 
-        // Detail modal user
-        $viewingUser = $this->viewingId
+        // Detail modal user — query only when modal is actually open
+        $viewingUser = $this->showDetailModal && $this->viewingId
             ? User::with(['department', 'enrollments.course', 'certificates.course'])
                 ->withCount([
                     'enrollments',

@@ -6,7 +6,7 @@ use App\Models\Department;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-class DepartmentTable extends Component
+class DepartmentTable extends AdminComponent
 {
     use WithPagination;
 
@@ -29,11 +29,14 @@ class DepartmentTable extends Component
         ];
     }
 
-    protected $messages = [
-        'name.required' => 'Departman adı zorunludur.',
-        'name.unique' => 'Bu departman adı zaten mevcut.',
-        'name.max' => 'Departman adı en fazla 150 karakter olabilir.',
-    ];
+    protected function messages(): array
+    {
+        return [
+            'name.required' => __('lms.val_name_required'),
+            'name.unique'   => __('lms.val_name_unique'),
+            'name.max'      => __('lms.val_dept_name_max'),
+        ];
+    }
 
     public function updatingSearch(): void
     {
@@ -69,10 +72,10 @@ class DepartmentTable extends Component
 
         if ($this->editingId) {
             Department::findOrFail($this->editingId)->update($data);
-            session()->flash('success', 'Departman güncellendi.');
+            session()->flash('success', __('lms.department_updated'));
         } else {
             Department::create($data);
-            session()->flash('success', 'Departman oluşturuldu.');
+            session()->flash('success', __('lms.department_created'));
         }
 
         $this->showModal = false;
@@ -90,13 +93,13 @@ class DepartmentTable extends Component
         $dept = Department::findOrFail($this->deletingId);
 
         if ($dept->users()->count() > 0) {
-            session()->flash('error', 'Bu departmana bağlı personel bulunmaktadır. Önce personellerin departmanını değiştirin.');
+            session()->flash('error', __('lms.cannot_delete_has_staff'));
             $this->showDeleteModal = false;
             return;
         }
 
         $dept->delete();
-        session()->flash('success', 'Departman silindi.');
+        session()->flash('success', __('lms.department_deleted'));
         $this->showDeleteModal = false;
         $this->deletingId = null;
     }

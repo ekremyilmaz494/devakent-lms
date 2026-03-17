@@ -11,12 +11,12 @@ use Illuminate\Support\Facades\Route;
 Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
 
 Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
-Route::get('/courses/{id}', [CourseController::class, 'show'])->name('courses.show');
+Route::get('/courses/{course}', [CourseController::class, 'show'])->name('courses.show');
 
 Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar');
 Route::get('/certificates', [CertificateController::class, 'index'])->name('certificates');
 Route::get('/certificates/{certificate}/download', [CertificateController::class, 'download'])->name('certificates.download');
-Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
+Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
 Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
 Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.readAll');
 

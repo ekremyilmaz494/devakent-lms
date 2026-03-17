@@ -8,8 +8,8 @@ use Illuminate\Support\Facades\Route;
 // ── Public (Kimlik doğrulamasız) ──
 Route::post('/login', [AuthController::class, 'login']);
 
-// ── Authenticated (Sanctum) ──
-Route::middleware('auth:sanctum')->group(function () {
+// ── Authenticated (Sanctum) — yalnızca staff rolü ──
+Route::middleware(['auth:sanctum', 'staff'])->group(function () {
     Route::post('/logout', [AuthController::class, 'logout']);
     Route::get('/me', [AuthController::class, 'me']);
 

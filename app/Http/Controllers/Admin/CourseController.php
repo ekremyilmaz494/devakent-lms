@@ -17,6 +17,11 @@ class CourseController extends Controller
         return view('admin.courses.create');
     }
 
+    public function show(Course $course)
+    {
+        return view('admin.courses.show', compact('course'));
+    }
+
     public function edit(Course $course)
     {
         return view('admin.courses.edit', compact('course'));

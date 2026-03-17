@@ -32,9 +32,13 @@ class StaffImport implements ToCollection, WithHeadingRow
                 continue;
             }
 
-            if (User::where('email', $email)->exists()) {
+            if (User::withTrashed()->where('email', $email)->exists()) {
                 $this->skipped++;
-                $this->errors[] = "Satır {$rowNumber}: {$email} zaten kayıtlı.";
+                // Silinmiş kullanıcı için daha açıklayıcı mesaj
+                $isDeleted = User::withTrashed()->where('email', $email)->whereNotNull('deleted_at')->exists();
+                $this->errors[] = $isDeleted
+                    ? "Satır {$rowNumber}: {$email} daha önce silinmiş, sisteme tekrar eklenemez."
+                    : "Satır {$rowNumber}: {$email} zaten kayıtlı.";
                 continue;
             }
 

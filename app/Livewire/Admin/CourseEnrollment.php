@@ -7,9 +7,11 @@ use App\Models\Department;
 use App\Models\Enrollment;
 use App\Models\User;
 use App\Notifications\CourseAssignedNotification;
+use Illuminate\Support\Facades\DB;
+use Livewire\Attributes\Computed;
 use Livewire\Component;
 
-class CourseEnrollment extends Component
+class CourseEnrollment extends AdminComponent
 {
     public int $courseId;
     public string $search = '';
@@ -33,42 +35,51 @@ class CourseEnrollment extends Component
     public function enrollSelected(): void
     {
         if (empty($this->selectedUsers)) {
-            session()->flash('error', 'Lütfen en az bir personel seçin.');
+            session()->flash('error', __('lms.no_staff_selected'));
             return;
         }
 
         $course = Course::findOrFail($this->courseId);
-        $enrolled = 0;
-        $skipped = 0;
 
-        foreach ($this->selectedUsers as $userId) {
-            // Zaten kayıtlı mı?
-            $exists = Enrollment::where('user_id', $userId)
-                ->where('course_id', $this->courseId)
-                ->exists();
-
-            if ($exists) {
-                $skipped++;
-                continue;
-            }
-
-            Enrollment::create([
-                'user_id' => $userId,
-                'course_id' => $this->courseId,
-                'status' => 'not_started',
-                'current_attempt' => 1,
-            ]);
-
-            // E-posta bildirimi
-            $user = User::find($userId);
-            $user?->notify(new CourseAssignedNotification($course));
-
-            $enrolled++;
+        if ($course->status !== 'published') {
+            session()->flash('error', __('lms.course_not_published'));
+            return;
         }
 
-        $message = "{$enrolled} personel eğitime atandı.";
+        // Eskisi: N+1 (her kullanıcı için ayrı EXISTS + ayrı find sorgusu)
+        // Yenisi: tek sorguda mevcut kayıtları toplu kontrol
+        $existingUserIds = Enrollment::where('course_id', $this->courseId)
+            ->whereIn('user_id', $this->selectedUsers)
+            ->pluck('user_id')
+            ->flip()
+            ->all();
+
+        $toEnroll = array_filter($this->selectedUsers, fn ($id) => !isset($existingUserIds[$id]));
+        $skipped  = count($this->selectedUsers) - count($toEnroll);
+        $enrolled = 0;
+
+        $usersToNotify = User::whereIn('id', $toEnroll)->where('is_active', true)->get()->keyBy('id');
+
+        // Pasif kullanıcıları toEnroll listesinden çıkar
+        $toEnroll = array_filter($toEnroll, fn ($id) => $usersToNotify->has($id));
+
+        DB::transaction(function () use ($toEnroll, $course, $usersToNotify, &$enrolled) {
+            foreach ($toEnroll as $userId) {
+                Enrollment::create([
+                    'user_id'         => $userId,
+                    'course_id'       => $this->courseId,
+                    'status'          => 'not_started',
+                    'current_attempt' => 1,
+                ]);
+
+                $usersToNotify->get($userId)?->notify(new CourseAssignedNotification($course));
+                $enrolled++;
+            }
+        });
+
+        $message = __('lms.enrollment_added', ['count' => $enrolled]);
         if ($skipped > 0) {
-            $message .= " {$skipped} personel zaten kayıtlı.";
+            $message .= ' ' . __('lms.enrollment_already_enrolled', ['count' => $skipped]);
         }
 
         session()->flash('success', $message);
@@ -79,30 +90,44 @@ class CourseEnrollment extends Component
     public function enrollDepartment(int $departmentId): void
     {
         $course = Course::findOrFail($this->courseId);
+
+        if ($course->status !== 'published') {
+            session()->flash('error', __('lms.course_not_published'));
+            return;
+        }
         $users = User::role('staff')
             ->where('department_id', $departmentId)
             ->where('is_active', true)
             ->get();
 
+        $userIds = $users->pluck('id')->all();
+
+        // Eskisi: N+1 (her kullanıcı için ayrı EXISTS sorgusu)
+        // Yenisi: tek sorguda toplu kontrol
+        $existingIds = Enrollment::where('course_id', $this->courseId)
+            ->whereIn('user_id', $userIds)
+            ->pluck('user_id')
+            ->flip()
+            ->all();
+
         $enrolled = 0;
-        foreach ($users as $user) {
-            $exists = Enrollment::where('user_id', $user->id)
-                ->where('course_id', $this->courseId)
-                ->exists();
-
-            if (!$exists) {
-                Enrollment::create([
-                    'user_id' => $user->id,
-                    'course_id' => $this->courseId,
-                    'status' => 'not_started',
-                    'current_attempt' => 1,
-                ]);
-                $user->notify(new CourseAssignedNotification($course));
-                $enrolled++;
+        DB::transaction(function () use ($users, $existingIds, $course, &$enrolled) {
+            foreach ($users as $user) {
+                if (isset($existingIds[$user->id])) {
+                    continue;
+                }
+                $enrollment = Enrollment::firstOrCreate(
+                    ['user_id' => $user->id, 'course_id' => $this->courseId],
+                    ['status' => 'not_started', 'current_attempt' => 1]
+                );
+                if ($enrollment->wasRecentlyCreated) {
+                    $user->notify(new CourseAssignedNotification($course));
+                    $enrolled++;
+                }
             }
-        }
+        });
 
-        session()->flash('success', "{$enrolled} personel eğitime atandı.");
+        session()->flash('success', __('lms.enrollment_added', ['count' => $enrolled]));
     }
 
     public function removeEnrollment(int $enrollmentId): void
@@ -110,18 +135,30 @@ class CourseEnrollment extends Component
         $enrollment = Enrollment::findOrFail($enrollmentId);
 
         if ($enrollment->status !== 'not_started') {
-            session()->flash('error', 'Başlamış bir eğitim kaydı kaldırılamaz.');
+            session()->flash('error', __('lms.enrollment_started_cannot_remove'));
             return;
         }
 
         $enrollment->delete();
-        session()->flash('success', 'Kayıt kaldırıldı.');
+        session()->flash('success', __('lms.enrollment_removed'));
+    }
+
+    #[Computed]
+    public function course(): Course
+    {
+        return Course::withCount('enrollments')->findOrFail($this->courseId);
+    }
+
+    #[Computed]
+    public function enrolledUsers()
+    {
+        return Enrollment::with(['user.department'])
+            ->where('course_id', $this->courseId)
+            ->get();
     }
 
     public function render()
     {
-        $course = Course::with(['enrollments.user.department'])->findOrFail($this->courseId);
-
         $availableUsers = User::role('staff')
             ->where('is_active', true)
             ->whereDoesntHave('enrollments', fn ($q) => $q->where('course_id', $this->courseId))
@@ -140,7 +177,8 @@ class CourseEnrollment extends Component
         $departments = Department::where('is_active', true)->orderBy('name')->get();
 
         return view('livewire.admin.course-enrollment', [
-            'course' => $course,
+            'course' => $this->course,
+            'enrolledUsers' => $this->enrolledUsers,
             'availableUsers' => $availableUsers,
             'departments' => $departments,
         ]);

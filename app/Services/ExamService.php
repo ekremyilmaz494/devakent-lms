@@ -9,6 +9,7 @@ use App\Models\ExamAnswer;
 use App\Models\ExamAttempt;
 use App\Models\User;
 use App\Notifications\ExamResultNotification;
+use Illuminate\Support\Facades\DB;
 
 class ExamService
 {
@@ -50,12 +51,13 @@ class ExamService
         $course = $enrollment->course;
 
         if ($isPassed) {
-            $enrollment->update([
-                'status' => 'completed',
-                'completed_at' => now(),
-            ]);
-
-            $certificate = $this->generateCertificate($enrollment, $attempt->score);
+            $certificate = DB::transaction(function () use ($enrollment, $attempt) {
+                $enrollment->update([
+                    'status' => 'completed',
+                    'completed_at' => now(),
+                ]);
+                return $this->generateCertificate($enrollment, $attempt->score);
+            });
 
             $this->notificationService->sendToUser(
                 $enrollment->user_id,
@@ -77,7 +79,7 @@ class ExamService
         $currentAttempt = $enrollment->current_attempt;
 
         if ($currentAttempt >= $maxAttempts) {
-            $enrollment->update(['status' => 'failed']);
+            DB::transaction(fn () => $enrollment->update(['status' => 'failed']));
 
             return [
                 'passed' => false,
@@ -90,10 +92,10 @@ class ExamService
         }
 
         // Failed but has attempts left - increment attempt and restart from pre_exam
-        $enrollment->update([
+        DB::transaction(fn () => $enrollment->update([
             'status' => 'in_progress',
             'current_attempt' => $currentAttempt + 1,
-        ]);
+        ]));
 
         return [
             'passed' => false,
@@ -117,7 +119,7 @@ class ExamService
         }
 
         // Sıralı numara üret (enrollment_id yerine global sıra)
-        $lastId = (int) Certificate::max('id');
+        $lastId = (int) Certificate::lockForUpdate()->max('id');
         $certNumber = 'DVK-' . date('Y') . '-' . str_pad($lastId + 1, 5, '0', STR_PAD_LEFT);
 
         $certificate = Certificate::create([

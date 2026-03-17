@@ -2,19 +2,19 @@
     {{-- Header --}}
     <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div class="relative w-full sm:w-72">
-            <input wire:model.live.debounce.300ms="search" type="text" placeholder="Kullanıcı veya işlem ara..."
+            <input wire:model.live.debounce.300ms="search" type="text" placeholder="{{ __('lms.search_log') }}"
                    class="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-primary-500 focus:border-primary-500">
             <svg class="w-5 h-5 absolute left-3 top-2.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
         </div>
         <div class="flex items-center gap-3">
             <select wire:model.live="eventFilter" class="pl-3 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-primary-500 focus:border-primary-500 min-w-[140px]">
-                <option value="">Tüm İşlemler</option>
-                <option value="created">Oluşturma</option>
-                <option value="updated">Güncelleme</option>
-                <option value="deleted">Silme</option>
+                <option value="">{{ __('lms.all_actions') }}</option>
+                <option value="created">{{ __('lms.action_create') }}</option>
+                <option value="updated">{{ __('lms.action_update') }}</option>
+                <option value="deleted">{{ __('lms.action_delete') }}</option>
             </select>
             <select wire:model.live="subjectFilter" class="pl-3 pr-8 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-sm bg-white dark:bg-gray-700 text-gray-800 dark:text-white focus:ring-primary-500 focus:border-primary-500 min-w-[140px]">
-                <option value="">Tüm Kategoriler</option>
+                <option value="">{{ __('lms.all_models') }}</option>
                 @foreach($subjectTypes as $type => $label)
                     <option value="{{ $type }}">{{ $label }}</option>
                 @endforeach
@@ -77,14 +77,14 @@
                             @if($activity->properties && $activity->properties->count() > 0)
                                 <button @click="open = !open" class="mt-2 text-xs text-primary-600 dark:text-primary-400 hover:underline flex items-center gap-1">
                                     <svg class="w-3.5 h-3.5 transition-transform" :class="open ? 'rotate-90' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" /></svg>
-                                    Detayları Göster
+                                    {{ __('lms.show_details') }}
                                 </button>
                                 <div x-show="open" x-collapse class="mt-2">
                                     @if($activity->properties->has('old') && $activity->properties->has('attributes'))
                                         <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
                                             {{-- Old values --}}
                                             <div class="bg-red-50 dark:bg-red-900/20 rounded-lg p-3">
-                                                <p class="text-[11px] font-semibold text-red-600 dark:text-red-400 mb-1.5 uppercase">Eski Değerler</p>
+                                                <p class="text-[11px] font-semibold text-red-600 dark:text-red-400 mb-1.5 uppercase">{{ __('lms.old_values') }}</p>
                                                 @foreach($activity->properties['old'] as $key => $val)
                                                     <div class="flex justify-between text-xs py-0.5">
                                                         <span class="text-gray-500 dark:text-gray-400">{{ $key }}</span>
@@ -94,7 +94,7 @@
                                             </div>
                                             {{-- New values --}}
                                             <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3">
-                                                <p class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mb-1.5 uppercase">Yeni Değerler</p>
+                                                <p class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mb-1.5 uppercase">{{ __('lms.new_values') }}</p>
                                                 @foreach($activity->properties['attributes'] as $key => $val)
                                                     <div class="flex justify-between text-xs py-0.5">
                                                         <span class="text-gray-500 dark:text-gray-400">{{ $key }}</span>
@@ -105,7 +105,7 @@
                                         </div>
                                     @elseif($activity->properties->has('attributes'))
                                         <div class="bg-emerald-50 dark:bg-emerald-900/20 rounded-lg p-3">
-                                            <p class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mb-1.5 uppercase">Değerler</p>
+                                            <p class="text-[11px] font-semibold text-emerald-600 dark:text-emerald-400 mb-1.5 uppercase">{{ __('lms.values_label') }}</p>
                                             @foreach($activity->properties['attributes'] as $key => $val)
                                                 <div class="flex justify-between text-xs py-0.5">
                                                     <span class="text-gray-500 dark:text-gray-400">{{ $key }}</span>
@@ -130,7 +130,7 @@
                     <svg class="w-12 h-12 mx-auto text-gray-300 dark:text-gray-600 mb-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                         <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
                     </svg>
-                    <p class="text-sm text-gray-400 dark:text-gray-500">Henüz işlem geçmişi bulunmuyor.</p>
+                    <p class="text-sm text-gray-400 dark:text-gray-500">{{ __('lms.log_empty') }}</p>
                 </div>
             @endforelse
         </div>

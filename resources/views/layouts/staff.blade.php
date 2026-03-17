@@ -1,9 +1,6 @@
 <!DOCTYPE html>
 <html lang="{{ app()->getLocale() }}"
-    x-data="{
-        darkMode: localStorage.getItem('darkMode') === 'true',
-        sidebarOpen: true
-    }"
+    x-data="{ darkMode: localStorage.getItem('darkMode') === 'true' }"
     x-effect="darkMode ? $el.classList.add('dark') : $el.classList.remove('dark')"
 >
 <head>
@@ -80,6 +77,7 @@
     </div>
 
     @livewireScripts
+    @livewireScriptConfig
     @stack('scripts')
 </body>
 </html>

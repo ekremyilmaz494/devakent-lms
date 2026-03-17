@@ -19,19 +19,16 @@ class CourseController extends Controller
         return view('staff.courses.index', compact('enrollments'));
     }
 
-    public function show($id)
+    public function show(Course $course)
     {
-        $course = Course::with(['category', 'questions'])->findOrFail($id);
-
-        // Verify user is enrolled in this course
         $enrollment = Enrollment::where('user_id', auth()->id())
-            ->where('course_id', $id)
+            ->where('course_id', $course->id)
             ->first();
 
         abort_unless($enrollment, 403, 'Bu eğitime erişim yetkiniz yok.');
 
         return view('staff.courses.show', [
-            'courseId' => $id,
+            'courseId' => $course->id,
             'course' => $course,
             'enrollment' => $enrollment,
         ]);

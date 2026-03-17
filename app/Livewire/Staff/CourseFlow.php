@@ -5,6 +5,7 @@ namespace App\Livewire\Staff;
 use App\Models\Course;
 use App\Models\Enrollment;
 use App\Models\VideoProgress;
+use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
 use Livewire\Component;
 
@@ -18,17 +19,20 @@ class CourseFlow extends Component
     public function mount(int $courseId): void
     {
         $this->courseId = $courseId;
+        Course::where('id', $courseId)->where('status', 'published')->firstOrFail();
         $this->determineStep();
     }
 
-    public function getEnrollmentProperty(): ?Enrollment
+    #[Computed]
+    public function enrollment(): ?Enrollment
     {
         return Enrollment::where('user_id', auth()->id())
             ->where('course_id', $this->courseId)
             ->first();
     }
 
-    public function getCourseProperty(): Course
+    #[Computed]
+    public function course(): Course
     {
         return Course::with(['category', 'questions', 'videos'])->findOrFail($this->courseId);
     }
@@ -69,16 +73,20 @@ class CourseFlow extends Component
         }
 
         // Çoklu video kontrolü
+        // Eskisi: N+1 (her video için ayrı sorgu)
+        // Yenisi: tek sorguda tüm tamamlanan video ID'leri
         $courseVideos = $this->course->videos;
 
         if ($courseVideos->isNotEmpty()) {
-            foreach ($courseVideos as $video) {
-                $progress = VideoProgress::where('enrollment_id', $enrollment->id)
-                    ->where('course_video_id', $video->id)
-                    ->where('attempt_number', $attemptNumber)
-                    ->first();
+            $completedVideoIds = VideoProgress::where('enrollment_id', $enrollment->id)
+                ->where('attempt_number', $attemptNumber)
+                ->where('is_completed', true)
+                ->pluck('course_video_id')
+                ->flip()
+                ->all();
 
-                if (!$progress || !$progress->is_completed) {
+            foreach ($courseVideos as $video) {
+                if (!isset($completedVideoIds[$video->id])) {
                     $this->currentVideoId = $video->id;
                     $this->step = 'video';
                     return;
@@ -172,14 +180,17 @@ class CourseFlow extends Component
         if ($targetIndex === false) return;
 
         // Sıralı izleme: önceki tüm videoların tamamlanmış olması gerekir
-        for ($i = 0; $i < $targetIndex; $i++) {
-            $prevVideo = $courseVideos[$i];
-            $prevProgress = VideoProgress::where('enrollment_id', $enrollment->id)
-                ->where('course_video_id', $prevVideo->id)
-                ->where('attempt_number', $attemptNumber)
-                ->first();
+        // Eskisi: N+1 (her video için ayrı sorgu)
+        // Yenisi: tek sorguda tüm tamamlanan video ID'leri
+        $completedForAttempt = VideoProgress::where('enrollment_id', $enrollment->id)
+            ->where('attempt_number', $attemptNumber)
+            ->where('is_completed', true)
+            ->pluck('course_video_id')
+            ->flip()
+            ->all();
 
-            if (!$prevProgress || !$prevProgress->is_completed) {
+        for ($i = 0; $i < $targetIndex; $i++) {
+            if (!isset($completedForAttempt[$courseVideos[$i]->id])) {
                 return; // Önceki video tamamlanmamış, geçiş engelle
             }
         }
@@ -241,11 +252,22 @@ class CourseFlow extends Component
             return collect();
         }
 
-        return $this->enrollment->examAttempts()
+        $postAttempts = $this->enrollment->examAttempts()
             ->where('exam_type', 'post_exam')
             ->whereNotNull('finished_at')
             ->orderBy('attempt_number')
             ->get();
+
+        // Tek sorguda tüm ön sınav puanlarını yükle (N+1 önleme)
+        $preExamScores = \App\Models\ExamAttempt::where('enrollment_id', $this->enrollment->id)
+            ->where('exam_type', 'pre_exam')
+            ->whereNotNull('finished_at')
+            ->pluck('score', 'attempt_number');
+
+        return $postAttempts->each(function ($attempt) use ($preExamScores) {
+            $attempt->pre_exam_score = $preExamScores->get($attempt->attempt_number);
+            $attempt->has_pre_exam = $preExamScores->has($attempt->attempt_number);
+        });
     }
 
     public function render()

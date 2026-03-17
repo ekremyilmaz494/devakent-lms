@@ -6,11 +6,12 @@ use App\Exports\CourseExport;
 use App\Models\Category;
 use App\Models\Course;
 use Barryvdh\DomPDF\Facade\Pdf;
+use Illuminate\Support\Facades\Cache;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
 
-class CourseTable extends Component
+class CourseTable extends AdminComponent
 {
     use WithPagination;
 
@@ -54,6 +55,13 @@ class CourseTable extends Component
         $this->resetPage();
     }
 
+    // Tab butonları için özel method — wire:target ile hedeflenebilir
+    public function filterByStatus(string $status): void
+    {
+        $this->filterStatus = $status;
+        $this->resetPage();
+    }
+
     // ── Sorting ──
     private array $allowedSortFields = ['title', 'created_at', 'questions_count', 'enrollments_count', 'status', 'category_id'];
 
@@ -69,6 +77,11 @@ class CourseTable extends Component
             $this->sortField = $field;
             $this->sortDirection = 'asc';
         }
+    }
+
+    public function placeholder(): string
+    {
+        return view('livewire.placeholders.skeleton')->render();
     }
 
     // ── Bulk Selection ──
@@ -89,7 +102,8 @@ class CourseTable extends Component
     public function bulkPublish(): void
     {
         Course::whereIn('id', $this->selectedCourses)->update(['status' => 'published']);
-        session()->flash('success', count($this->selectedCourses) . ' eğitim yayınlandı.');
+        Cache::forget('admin.course_status_counts');
+        session()->flash('success', __('lms.course_bulk_published', ['count' => count($this->selectedCourses)]));
         $this->selectedCourses = [];
         $this->selectAll = false;
     }
@@ -97,7 +111,8 @@ class CourseTable extends Component
     public function bulkDraft(): void
     {
         Course::whereIn('id', $this->selectedCourses)->update(['status' => 'draft']);
-        session()->flash('success', count($this->selectedCourses) . ' eğitim taslağa alındı.');
+        Cache::forget('admin.course_status_counts');
+        session()->flash('success', __('lms.course_bulk_drafted', ['count' => count($this->selectedCourses)]));
         $this->selectedCourses = [];
         $this->selectAll = false;
     }
@@ -124,9 +139,10 @@ class CourseTable extends Component
             $deleted++;
         }
 
-        $message = "{$deleted} eğitim silindi.";
         if ($skipped > 0) {
-            $message .= " {$skipped} eğitim kayıtlı personel nedeniyle silinemedi.";
+            $message = __('lms.course_bulk_deleted', ['count' => $deleted, 'skipped' => $skipped]);
+        } else {
+            $message = __('lms.course_bulk_deleted_clean', ['count' => $deleted]);
         }
         session()->flash('success', $message);
         $this->selectedCourses = [];
@@ -144,6 +160,11 @@ class CourseTable extends Component
     // ── Export ──
     public function exportExcel()
     {
+        if ($this->getFilteredQuery()->doesntExist()) {
+            session()->flash('warning', __('lms.no_export_data'));
+            return;
+        }
+
         return Excel::download(
             new CourseExport($this->search, $this->filterCategory, $this->filterStatus, $this->filterMandatory),
             'egitimler_' . date('Y-m-d') . '.xlsx'
@@ -178,7 +199,7 @@ class CourseTable extends Component
         $course = Course::findOrFail($this->deletingId);
 
         if ($course->enrollments()->count() > 0) {
-            session()->flash('error', 'Bu eğitime kayıtlı personel bulunmaktadır. Önce kayıtları kaldırın.');
+            session()->flash('error', __('lms.course_has_enrollments'));
             $this->showDeleteModal = false;
             return;
         }
@@ -186,8 +207,9 @@ class CourseTable extends Component
         $course->questions()->delete();
         $course->departments()->detach();
         $course->delete();
+        Cache::forget('admin.course_status_counts');
 
-        session()->flash('success', 'Eğitim silindi.');
+        session()->flash('success', __('lms.course_deleted_msg'));
         $this->showDeleteModal = false;
         $this->deletingId = null;
     }
@@ -197,7 +219,8 @@ class CourseTable extends Component
         $course = Course::findOrFail($id);
         $newStatus = $course->status === 'published' ? 'draft' : 'published';
         $course->update(['status' => $newStatus]);
-        session()->flash('success', $newStatus === 'published' ? 'Eğitim yayınlandı.' : 'Eğitim taslağa alındı.');
+        Cache::forget('admin.course_status_counts');
+        session()->flash('success', $newStatus === 'published' ? __('lms.course_published') : __('lms.course_drafted'));
     }
 
     // ── Query Builder ──
@@ -222,13 +245,21 @@ class CourseTable extends Component
             ->orderBy($this->sortField, $this->sortDirection)
             ->paginate(10);
 
-        $categories = Category::orderBy('name')->get();
-        $totalCourses = Course::count();
-        $publishedCount = Course::where('status', 'published')->count();
-        $draftCount = Course::where('status', 'draft')->count();
+        // Kategoriler nadiren değişir — 10 dk cache
+        $categories = Cache::remember('admin.course_categories', 600, fn () =>
+            Category::orderBy('name')->get()
+        );
 
-        // Detail modal course
-        $viewingCourse = $this->viewingId
+        // 3 ayrı COUNT yerine tek GROUP BY + 1 dk cache
+        $statusCounts = Cache::remember('admin.course_status_counts', 60, fn () =>
+            Course::selectRaw('status, COUNT(*) as cnt')->groupBy('status')->pluck('cnt', 'status')
+        );
+        $totalCourses   = $statusCounts->sum();
+        $publishedCount = $statusCounts->get('published', 0);
+        $draftCount     = $statusCounts->get('draft', 0);
+
+        // Detail modal — sadece modal açıkken yükle
+        $viewingCourse = $this->showDetailModal && $this->viewingId
             ? Course::with(['category', 'creator', 'departments', 'enrollments.user', 'videos'])
                 ->withCount(['questions', 'enrollments', 'enrollments as completed_enrollments_count' => fn ($q) => $q->where('status', 'completed')])
                 ->find($this->viewingId)

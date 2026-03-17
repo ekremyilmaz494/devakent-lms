@@ -6,7 +6,7 @@ use App\Models\Category;
 use Livewire\Component;
 use Livewire\WithPagination;
 
-class CategoryTable extends Component
+class CategoryTable extends AdminComponent
 {
     use WithPagination;
 
@@ -27,11 +27,14 @@ class CategoryTable extends Component
         ];
     }
 
-    protected $messages = [
-        'name.required' => 'Kategori adı zorunludur.',
-        'name.unique' => 'Bu kategori adı zaten mevcut.',
-        'color.regex' => 'Geçerli bir renk kodu girin (örn: #3B82F6).',
-    ];
+    protected function messages(): array
+    {
+        return [
+            'name.required' => __('lms.val_category_name_req'),
+            'name.unique'   => __('lms.val_category_name_unique'),
+            'color.regex'   => __('lms.val_color_regex'),
+        ];
+    }
 
     public function updatingSearch(): void
     {
@@ -62,10 +65,10 @@ class CategoryTable extends Component
 
         if ($this->editingId) {
             Category::findOrFail($this->editingId)->update($data);
-            session()->flash('success', 'Kategori güncellendi.');
+            session()->flash('success', __('lms.category_updated'));
         } else {
             Category::create($data);
-            session()->flash('success', 'Kategori oluşturuldu.');
+            session()->flash('success', __('lms.category_created'));
         }
 
         $this->showModal = false;
@@ -83,13 +86,13 @@ class CategoryTable extends Component
         $cat = Category::findOrFail($this->deletingId);
 
         if ($cat->courses()->count() > 0) {
-            session()->flash('error', 'Bu kategoriye bağlı eğitimler bulunmaktadır. Önce eğitimlerin kategorisini değiştirin.');
+            session()->flash('error', __('lms.cannot_delete_has_courses'));
             $this->showDeleteModal = false;
             return;
         }
 
         $cat->delete();
-        session()->flash('success', 'Kategori silindi.');
+        session()->flash('success', __('lms.category_deleted'));
         $this->showDeleteModal = false;
         $this->deletingId = null;
     }
