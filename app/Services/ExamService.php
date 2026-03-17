@@ -2,13 +2,23 @@
 
 namespace App\Services;
 
+use App\Jobs\GenerateCertificateJob;
 use App\Models\Certificate;
 use App\Models\Enrollment;
 use App\Models\ExamAnswer;
 use App\Models\ExamAttempt;
+use App\Models\User;
+use App\Notifications\ExamResultNotification;
 
 class ExamService
 {
+    private NotificationService $notificationService;
+
+    public function __construct()
+    {
+        $this->notificationService = new NotificationService();
+    }
+
     public function evaluateExam(ExamAttempt $attempt): array
     {
         $enrollment = $attempt->enrollment;
@@ -19,6 +29,10 @@ class ExamService
         $attempt->update(['is_passed' => $isPassed]);
 
         if ($attempt->exam_type === 'post_exam') {
+            // E-posta bildirimi gönder
+            $user = User::find($enrollment->user_id);
+            $user?->notify(new ExamResultNotification($attempt, $course->title));
+
             return $this->handlePostExamResult($enrollment, $attempt, $isPassed);
         }
 
@@ -42,6 +56,13 @@ class ExamService
             ]);
 
             $certificate = $this->generateCertificate($enrollment, $attempt->score);
+
+            $this->notificationService->sendToUser(
+                $enrollment->user_id,
+                'Sertifikanız Hazır!',
+                '"' . $course->title . '" eğitimini %' . $attempt->score . ' başarıyla tamamladınız. Sertifikanız oluşturuldu.',
+                'success'
+            );
 
             return [
                 'passed' => true,
@@ -76,7 +97,7 @@ class ExamService
 
         return [
             'passed' => false,
-            'next_step' => 'pre_exam',
+            'next_step' => 'video', // 2./3. denemede ön sınav atlanır, direkt video
             'score' => $attempt->score,
             'attempts_used' => $currentAttempt,
             'attempts_remaining' => $maxAttempts - $currentAttempt,
@@ -86,9 +107,20 @@ class ExamService
 
     private function generateCertificate(Enrollment $enrollment, float $score): Certificate
     {
-        $certNumber = 'DVK-' . date('Y') . '-' . str_pad($enrollment->id, 5, '0', STR_PAD_LEFT);
+        // Mükerrerlik kontrolü: aynı user+course için sertifika varsa onu döndür
+        $existing = Certificate::where('user_id', $enrollment->user_id)
+            ->where('course_id', $enrollment->course_id)
+            ->first();
 
-        return Certificate::create([
+        if ($existing) {
+            return $existing;
+        }
+
+        // Sıralı numara üret (enrollment_id yerine global sıra)
+        $lastId = (int) Certificate::max('id');
+        $certNumber = 'DVK-' . date('Y') . '-' . str_pad($lastId + 1, 5, '0', STR_PAD_LEFT);
+
+        $certificate = Certificate::create([
             'enrollment_id' => $enrollment->id,
             'user_id' => $enrollment->user_id,
             'course_id' => $enrollment->course_id,
@@ -96,6 +128,13 @@ class ExamService
             'final_score' => $score,
             'issued_at' => now(),
         ]);
+
+        GenerateCertificateJob::dispatch($certificate);
+
+        // Rozet kontrolü
+        app(BadgeService::class)->checkAndAwardBadges($enrollment->user_id, $enrollment);
+
+        return $certificate;
     }
 
     public function createAttempt(Enrollment $enrollment, string $examType): ExamAttempt
@@ -132,8 +171,7 @@ class ExamService
     public function finishAttempt(ExamAttempt $attempt): ExamAttempt
     {
         $correctCount = $attempt->answers()->where('is_correct', true)->count();
-        $totalQuestions = $attempt->total_questions;
-        $score = $totalQuestions > 0 ? round(($correctCount / $totalQuestions) * 100) : 0;
+        $score = $correctCount * 10; // Her doğru cevap 10 puan (10 soru × 10 puan = 100)
 
         $attempt->update([
             'correct_answers' => $correctCount,

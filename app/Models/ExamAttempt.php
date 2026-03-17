@@ -32,4 +32,29 @@ class ExamAttempt extends Model
     {
         return $this->hasMany(ExamAnswer::class);
     }
+
+    // --- Deneme Geçmişi tablosu için accessor'lar ---
+
+    public function getPostExamScoreAttribute(): ?float
+    {
+        return $this->exam_type === 'post_exam' ? $this->score : null;
+    }
+
+    public function getPreExamScoreAttribute(): ?float
+    {
+        return self::where('enrollment_id', $this->enrollment_id)
+            ->where('attempt_number', $this->attempt_number)
+            ->where('exam_type', 'pre_exam')
+            ->whereNotNull('finished_at')
+            ->value('score');
+    }
+
+    public function getHasPreExamAttribute(): bool
+    {
+        return self::where('enrollment_id', $this->enrollment_id)
+            ->where('attempt_number', $this->attempt_number)
+            ->where('exam_type', 'pre_exam')
+            ->whereNotNull('finished_at')
+            ->exists();
+    }
 }

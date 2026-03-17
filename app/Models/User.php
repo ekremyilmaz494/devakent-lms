@@ -5,10 +5,12 @@ namespace App\Models;
 use Database\Factories\UserFactory;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use Illuminate\Foundation\Auth\User as Authenticatable;
 use Illuminate\Notifications\Notifiable;
+use Laravel\Sanctum\HasApiTokens;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
 use Spatie\Permission\Traits\HasRoles;
@@ -16,11 +18,11 @@ use Spatie\Permission\Traits\HasRoles;
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
-    use HasFactory, Notifiable, HasRoles, SoftDeletes, LogsActivity;
+    use HasFactory, Notifiable, HasRoles, SoftDeletes, LogsActivity, HasApiTokens;
 
     protected $fillable = [
         'name', 'first_name', 'last_name', 'email', 'password',
-        'phone', 'avatar', 'registration_number', 'title',
+        'phone', 'avatar', 'registration_number', 'hr_employee_id', 'title',
         'department_id', 'hire_date', 'is_active',
         'notification_preferences', 'last_login_at',
     ];
@@ -70,5 +72,16 @@ class User extends Authenticatable
     public function notificationRecipients(): HasMany
     {
         return $this->hasMany(NotificationRecipient::class);
+    }
+
+    public function badges(): BelongsToMany
+    {
+        return $this->belongsToMany(Badge::class, 'user_badges')
+            ->withPivot('earned_at', 'enrollment_id');
+    }
+
+    public function userBadges(): HasMany
+    {
+        return $this->hasMany(UserBadge::class);
     }
 }

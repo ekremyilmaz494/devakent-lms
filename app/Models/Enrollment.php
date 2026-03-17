@@ -41,11 +41,23 @@ class Enrollment extends Model
         return $this->hasMany(VideoProgress::class);
     }
 
-    public function currentVideoProgress(): HasOne
+    /**
+     * Mevcut deneme döngüsünde tüm videoların tamamlanıp tamamlanmadığını kontrol eder.
+     */
+    public function allVideosCompleted(): bool
     {
-        return $this->hasOne(VideoProgress::class)
+        $totalVideos = $this->course->videos()->count();
+
+        if ($totalVideos === 0) {
+            return true;
+        }
+
+        $completedVideos = $this->videoProgress()
             ->where('attempt_number', $this->current_attempt ?: 1)
-            ->latestOfMany();
+            ->where('is_completed', true)
+            ->count();
+
+        return $completedVideos >= $totalVideos;
     }
 
     public function certificate(): HasOne

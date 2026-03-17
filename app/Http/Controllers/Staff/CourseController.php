@@ -21,12 +21,14 @@ class CourseController extends Controller
 
     public function show($id)
     {
-        // Verify user has enrollment for this course
+        $course = Course::with(['category', 'questions'])->findOrFail($id);
+
+        // Verify user is enrolled in this course
         $enrollment = Enrollment::where('user_id', auth()->id())
             ->where('course_id', $id)
             ->first();
 
-        $course = Course::with(['category', 'questions'])->findOrFail($id);
+        abort_unless($enrollment, 403, 'Bu eğitime erişim yetkiniz yok.');
 
         return view('staff.courses.show', [
             'courseId' => $id,

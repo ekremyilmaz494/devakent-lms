@@ -2,13 +2,17 @@
 
 namespace App\Livewire\Admin;
 
+use App\Exports\ReportExport;
 use App\Models\Course;
 use App\Models\Department;
 use App\Models\Enrollment;
 use App\Models\ExamAttempt;
+use App\Models\SystemSetting;
 use App\Models\User;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\DB;
 use Livewire\Component;
+use Maatwebsite\Excel\Facades\Excel;
 
 class ReportDashboard extends Component
 {
@@ -35,6 +39,80 @@ class ReportDashboard extends Component
         return view('livewire.admin.report-dashboard', array_merge($data, ['stats' => $stats]));
     }
 
+    public function exportExcel()
+    {
+        $prepared = $this->prepareExportData();
+
+        return Excel::download(
+            new ReportExport($prepared['rows'], $prepared['headings'], $prepared['title']),
+            'rapor-' . $this->activeTab . '-' . date('Y-m-d') . '.xlsx'
+        );
+    }
+
+    public function exportPdf()
+    {
+        $prepared = $this->prepareExportData();
+
+        $pdf = Pdf::loadView('pdf.report', [
+            'title' => $prepared['title'],
+            'headings' => $prepared['headings'],
+            'rows' => $prepared['rows'],
+            'institution' => SystemSetting::get('institution_name', 'Devakent Hastanesi'),
+        ])->setPaper('a4', 'landscape');
+
+        return response()->streamDownload(
+            fn () => print($pdf->output()),
+            'rapor-' . $this->activeTab . '-' . date('Y-m-d') . '.pdf'
+        );
+    }
+
+    private function prepareExportData(): array
+    {
+        $data = match ($this->activeTab) {
+            'course' => $this->getCourseReport(),
+            'department' => $this->getDepartmentReport(),
+            'staff' => $this->getStaffReport(),
+            'time' => $this->getTimeReport(),
+            default => $this->getCourseReport(),
+        };
+
+        $reportData = $data['reportData'];
+
+        return match ($this->activeTab) {
+            'course' => [
+                'title' => 'Eğitim Bazlı Rapor',
+                'headings' => ['Eğitim', 'Kategori', 'Kayıt', 'Tamamlanan', 'Tamamlanma %', 'Ön Sınav Ort.', 'Son Sınav Ort.'],
+                'rows' => $reportData->map(fn ($r) => [
+                    $r['title'], $r['category'], $r['enrollments'], $r['completed'],
+                    '%' . $r['completion_rate'], $r['pre_exam_avg'], $r['post_exam_avg'],
+                ])->toArray(),
+            ],
+            'department' => [
+                'title' => 'Departman Bazlı Rapor',
+                'headings' => ['Departman', 'Personel', 'Kayıt', 'Tamamlanan', 'Tamamlanma %', 'Ön Sınav Ort.', 'Son Sınav Ort.'],
+                'rows' => $reportData->map(fn ($r) => [
+                    $r['name'], $r['staff_count'], $r['enrollments'], $r['completed'],
+                    '%' . $r['completion_rate'], $r['pre_exam_avg'], $r['post_exam_avg'],
+                ])->toArray(),
+            ],
+            'staff' => [
+                'title' => 'Personel Bazlı Rapor',
+                'headings' => ['Personel', 'Departman', 'Kayıt', 'Tamamlanan', 'Tamamlanma %', 'Ön Sınav Ort.', 'Son Sınav Ort.', 'Sertifika', 'Son Giriş'],
+                'rows' => $reportData->map(fn ($r) => [
+                    $r['name'], $r['department'], $r['enrollments'], $r['completed'],
+                    '%' . $r['completion_rate'], $r['pre_exam_avg'], $r['post_exam_avg'], $r['certificates'], $r['last_login'],
+                ])->toArray(),
+            ],
+            'time' => [
+                'title' => 'Zaman Bazlı Rapor (Son 6 Ay)',
+                'headings' => ['Ay', 'Toplam Kayıt', 'Tamamlanan', 'Tamamlanma %'],
+                'rows' => $reportData->map(fn ($r) => [
+                    $r['month'], $r['total'], $r['completed'], '%' . $r['completion_rate'],
+                ])->toArray(),
+            ],
+        };
+    }
+
     private function getCourseReport(): array
     {
         $courses = Course::where('status', 'published')
@@ -49,11 +127,11 @@ class ReportDashboard extends Component
                     : 0;
 
                 $preExamAvg = ExamAttempt::whereHas('enrollment', fn ($q) => $q->where('course_id', $course->id))
-                    ->where('exam_type', 'pre')
+                    ->where('exam_type', 'pre_exam')
                     ->avg('score');
 
                 $postExamAvg = ExamAttempt::whereHas('enrollment', fn ($q) => $q->where('course_id', $course->id))
-                    ->where('exam_type', 'post')
+                    ->where('exam_type', 'post_exam')
                     ->avg('score');
 
                 return [
@@ -83,8 +161,14 @@ class ReportDashboard extends Component
                 $completedEnrollments = Enrollment::whereIn('user_id', $userIds)->where('status', 'completed')->count();
                 $completionRate = $totalEnrollments > 0 ? round($completedEnrollments / $totalEnrollments * 100, 1) : 0;
 
-                $avgScore = ExamAttempt::whereHas('enrollment', fn ($q) => $q->whereIn('user_id', $userIds))
-                    ->where('is_passed', true)
+                $preExamAvg = ExamAttempt::whereHas('enrollment', fn ($q) => $q->whereIn('user_id', $userIds))
+                    ->where('exam_type', 'pre_exam')
+                    ->whereNotNull('finished_at')
+                    ->avg('score');
+
+                $postExamAvg = ExamAttempt::whereHas('enrollment', fn ($q) => $q->whereIn('user_id', $userIds))
+                    ->where('exam_type', 'post_exam')
+                    ->whereNotNull('finished_at')
                     ->avg('score');
 
                 return [
@@ -93,7 +177,8 @@ class ReportDashboard extends Component
                     'enrollments' => $totalEnrollments,
                     'completed' => $completedEnrollments,
                     'completion_rate' => $completionRate,
-                    'avg_score' => round($avgScore ?? 0, 1),
+                    'pre_exam_avg' => round($preExamAvg ?? 0, 1),
+                    'post_exam_avg' => round($postExamAvg ?? 0, 1),
                 ];
             });
 
@@ -116,8 +201,14 @@ class ReportDashboard extends Component
                     ? round($user->completed_count / $user->enrollments_count * 100, 1)
                     : 0;
 
-                $avgScore = ExamAttempt::whereHas('enrollment', fn ($q) => $q->where('user_id', $user->id))
-                    ->where('is_passed', true)
+                $preExamAvg = ExamAttempt::whereHas('enrollment', fn ($q) => $q->where('user_id', $user->id))
+                    ->where('exam_type', 'pre_exam')
+                    ->whereNotNull('finished_at')
+                    ->avg('score');
+
+                $postExamAvg = ExamAttempt::whereHas('enrollment', fn ($q) => $q->where('user_id', $user->id))
+                    ->where('exam_type', 'post_exam')
+                    ->whereNotNull('finished_at')
                     ->avg('score');
 
                 return [
@@ -126,7 +217,8 @@ class ReportDashboard extends Component
                     'enrollments' => $user->enrollments_count,
                     'completed' => $user->completed_count,
                     'completion_rate' => $completionRate,
-                    'avg_score' => round($avgScore ?? 0, 1),
+                    'pre_exam_avg' => round($preExamAvg ?? 0, 1),
+                    'post_exam_avg' => round($postExamAvg ?? 0, 1),
                     'certificates' => $user->certificates_count,
                     'last_login' => $user->last_login_at?->diffForHumans() ?? 'Henüz giriş yok',
                 ];

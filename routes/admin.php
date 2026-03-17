@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\Admin\ActivityLogController;
 use App\Http\Controllers\Admin\CategoryController;
 use App\Http\Controllers\Admin\CourseController;
 use App\Http\Controllers\Admin\DashboardController;
@@ -16,8 +17,10 @@ Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard
 Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
 Route::get('/courses/create', [CourseController::class, 'create'])->name('courses.create');
 Route::get('/courses/{course}/edit', [CourseController::class, 'edit'])->name('courses.edit');
+Route::get('/courses/{course}/enrollments', [CourseController::class, 'enrollments'])->name('courses.enrollments');
 
 Route::get('/staff', [StaffController::class, 'index'])->name('staff.index');
+Route::get('/staff/{user}', [StaffController::class, 'show'])->name('staff.show');
 
 Route::get('/departments', [DepartmentController::class, 'index'])->name('departments.index');
 Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
@@ -25,3 +28,4 @@ Route::get('/categories', [CategoryController::class, 'index'])->name('categorie
 Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
 Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
 Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
+Route::get('/activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index');

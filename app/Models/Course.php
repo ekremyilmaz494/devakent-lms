@@ -2,6 +2,7 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
@@ -11,11 +12,11 @@ use Spatie\Activitylog\Traits\LogsActivity;
 
 class Course extends Model
 {
-    use LogsActivity;
+    use HasFactory, LogsActivity;
 
     protected $fillable = [
-        'title', 'description', 'category_id', 'video_path',
-        'video_duration_seconds', 'start_date', 'end_date',
+        'title', 'description', 'category_id',
+        'start_date', 'end_date',
         'exam_duration_minutes', 'passing_score', 'max_attempts',
         'is_mandatory', 'status', 'created_by',
     ];
@@ -54,8 +55,18 @@ class Course extends Model
         return $this->hasMany(Question::class)->orderBy('sort_order');
     }
 
+    public function videos(): HasMany
+    {
+        return $this->hasMany(CourseVideo::class)->orderBy('sort_order');
+    }
+
     public function enrollments(): HasMany
     {
         return $this->hasMany(Enrollment::class);
+    }
+
+    public function resources(): HasMany
+    {
+        return $this->hasMany(CourseResource::class)->orderBy('sort_order');
     }
 }

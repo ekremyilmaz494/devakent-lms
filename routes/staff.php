@@ -15,5 +15,14 @@ Route::get('/courses/{id}', [CourseController::class, 'show'])->name('courses.sh
 
 Route::get('/calendar', [CalendarController::class, 'index'])->name('calendar');
 Route::get('/certificates', [CertificateController::class, 'index'])->name('certificates');
+Route::get('/certificates/{certificate}/download', [CertificateController::class, 'download'])->name('certificates.download');
 Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications');
+Route::post('/notifications/{id}/read', [NotificationController::class, 'markAsRead'])->name('notifications.read');
+Route::post('/notifications/read-all', [NotificationController::class, 'markAllAsRead'])->name('notifications.readAll');
+
 Route::get('/profile', [ProfileController::class, 'index'])->name('profile');
+Route::put('/profile', [ProfileController::class, 'update'])->name('profile.update');
+Route::put('/profile/password', [ProfileController::class, 'updatePassword'])->name('profile.password');
+
+Route::get('/leaderboard', fn () => view('staff.leaderboard'))->name('leaderboard');
+Route::get('/badges', fn () => view('staff.badges'))->name('badges');

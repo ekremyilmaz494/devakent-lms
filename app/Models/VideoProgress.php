@@ -12,7 +12,7 @@ class VideoProgress extends Model
     protected $table = 'video_progress';
 
     protected $fillable = [
-        'enrollment_id', 'attempt_number',
+        'enrollment_id', 'course_video_id', 'attempt_number',
         'watched_seconds', 'total_seconds',
         'is_completed', 'last_position',
     ];
@@ -25,5 +25,10 @@ class VideoProgress extends Model
     public function enrollment(): BelongsTo
     {
         return $this->belongsTo(Enrollment::class);
+    }
+
+    public function courseVideo(): BelongsTo
+    {
+        return $this->belongsTo(CourseVideo::class);
     }
 }

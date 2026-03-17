@@ -35,4 +35,14 @@ return [
         ],
     ],
 
+    'hr' => [
+        'enabled' => env('HR_ENABLED', false),
+        'base_url' => env('HR_API_URL', ''),
+        'api_token' => env('HR_API_TOKEN', ''),
+    ],
+
+    'ffmpeg' => [
+        'path' => env('FFMPEG_PATH', 'ffmpeg'),
+    ],
+
 ];

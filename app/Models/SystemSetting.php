@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Cache;
 
 class SystemSetting extends Model
 {
@@ -18,8 +19,10 @@ class SystemSetting extends Model
 
     public static function get(string $key, mixed $default = null): mixed
     {
-        $setting = static::where('key', $key)->first();
-        return $setting ? $setting->value : $default;
+        return Cache::remember("setting.{$key}", 3600, function () use ($key, $default) {
+            $setting = static::where('key', $key)->first();
+            return $setting ? $setting->value : $default;
+        });
     }
 
     public static function set(string $key, mixed $value, ?int $userId = null): void
@@ -28,5 +31,6 @@ class SystemSetting extends Model
             ['key' => $key],
             ['value' => $value, 'updated_by' => $userId]
         );
+        Cache::forget("setting.{$key}");
     }
 }

@@ -14,7 +14,7 @@ class AdminUserSeeder extends Seeder
             'first_name' => 'Sistem',
             'last_name' => 'Yöneticisi',
             'email' => 'admin@devakent.com',
-            'password' => bcrypt('password'),
+            'password' => bcrypt(env('ADMIN_DEFAULT_PASSWORD', 'Devakent2024!')),
             'registration_number' => 'DVK-0001',
             'title' => 'Sistem Yöneticisi',
             'is_active' => true,

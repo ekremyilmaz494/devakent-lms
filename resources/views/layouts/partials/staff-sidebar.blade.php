@@ -1,8 +1,8 @@
-<aside class="flex flex-col w-64 bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700 h-screen">
-    {{-- Logo --}}
-    <div class="flex items-center h-16 px-5 border-b border-gray-100 dark:border-gray-700">
+<div class="flex flex-col w-full h-full bg-white dark:bg-gray-800 border-r border-gray-200 dark:border-gray-700">
+    {{-- Logo + Mobil Kapat --}}
+    <div class="flex items-center justify-between h-16 px-5 border-b border-gray-100 dark:border-gray-700">
         <div class="flex items-center space-x-3">
-            <div class="w-9 h-9 bg-gradient-to-br from-teal-500 to-emerald-600 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
+            <div class="w-9 h-9 bg-gradient-to-br from-primary-500 to-primary-700 rounded-xl flex items-center justify-center flex-shrink-0 shadow-sm">
                 <svg class="w-5 h-5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
                 </svg>
@@ -12,6 +12,10 @@
                 <p class="text-[10px] text-gray-400 dark:text-gray-500 -mt-0.5">Eğitim Portalı</p>
             </div>
         </div>
+        {{-- Mobil kapat butonu --}}
+        <button @click="sidebarOpen = false" class="lg:hidden p-1.5 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+        </button>
     </div>
 
     {{-- Navigation --}}
@@ -29,9 +33,9 @@
 
         @foreach($menuItems as $item)
             @php $isActive = request()->routeIs($item['route'] . '*'); @endphp
-            <a href="{{ route($item['route']) }}"
-               class="flex items-center px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 group {{ $isActive ? 'bg-teal-50 dark:bg-teal-900/20 text-teal-700 dark:text-teal-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white' }}">
-                <svg class="w-[18px] h-[18px] flex-shrink-0 {{ $isActive ? 'text-teal-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
+            <a href="{{ route($item['route']) }}" @click="sidebarOpen = false"
+               class="flex items-center px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 group {{ $isActive ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white' }}">
+                <svg class="w-[18px] h-[18px] flex-shrink-0 {{ $isActive ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">{!! $item['icon'] !!}</svg>
                 <span class="ml-3">{{ $item['label'] }}</span>
                 @if($item['route'] === 'staff.notifications')
                     @php
@@ -50,7 +54,7 @@
         <div class="px-3 py-3">
             <div x-data="{ open: false }" class="relative">
                 <button @click="open = !open" class="flex items-center w-full px-2 py-2 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors group">
-                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-teal-400 to-emerald-500 flex items-center justify-center flex-shrink-0 shadow-sm">
+                    <div class="w-9 h-9 rounded-full bg-gradient-to-br from-primary-400 to-primary-600 flex items-center justify-center flex-shrink-0 shadow-sm">
                         <span class="text-xs font-semibold text-white">{{ strtoupper(substr(auth()->user()->first_name ?? 'A', 0, 1) . substr(auth()->user()->last_name ?? 'Y', 0, 1)) }}</span>
                     </div>
                     <div class="ml-3 text-left flex-1 min-w-0">
@@ -60,7 +64,13 @@
                     <svg class="w-4 h-4 text-gray-400 flex-shrink-0 transition-transform" :class="open ? 'rotate-180' : ''" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7" /></svg>
                 </button>
 
-                <div x-show="open" @click.away="open = false" x-transition:enter="transition ease-out duration-100" x-transition:enter-start="opacity-0 -translate-y-1" x-transition:enter-end="opacity-100 translate-y-0"
+                <div x-show="open" @click.away="open = false"
+                     x-transition:enter="transition ease-out duration-200"
+                     x-transition:enter-start="opacity-0 scale-95 translate-y-2"
+                     x-transition:enter-end="opacity-100 scale-100 translate-y-0"
+                     x-transition:leave="transition ease-in duration-150"
+                     x-transition:leave-start="opacity-100 scale-100 translate-y-0"
+                     x-transition:leave-end="opacity-0 scale-95 translate-y-2"
                      class="absolute bottom-full left-0 right-0 mb-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg border border-gray-200 dark:border-gray-700 py-1.5 z-50">
                     <div class="px-3 py-2 border-b border-gray-100 dark:border-gray-700">
                         <p class="text-xs font-medium text-gray-800 dark:text-white">{{ auth()->user()->full_name }}</p>
@@ -81,4 +91,4 @@
             </div>
         </div>
     </div>
-</aside>
+</div>

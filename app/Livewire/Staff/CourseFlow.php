@@ -11,8 +11,9 @@ use Livewire\Component;
 class CourseFlow extends Component
 {
     public int $courseId;
-    public string $step = 'intro'; // intro, pre_exam, video, post_exam, result, completed, failed
+    public string $step = 'intro'; // intro, pre_exam_warning, pre_exam, video, post_exam_warning, post_exam, result, completed, failed
     public ?array $examResult = null;
+    public ?int $currentVideoId = null;
 
     public function mount(int $courseId): void
     {
@@ -29,7 +30,7 @@ class CourseFlow extends Component
 
     public function getCourseProperty(): Course
     {
-        return Course::with(['category', 'questions'])->findOrFail($this->courseId);
+        return Course::with(['category', 'questions', 'videos'])->findOrFail($this->courseId);
     }
 
     private function determineStep(): void
@@ -53,29 +54,39 @@ class CourseFlow extends Component
 
         $attemptNumber = $enrollment->current_attempt ?: 1;
 
-        // Check pre-exam status for current attempt
-        $preExam = $enrollment->examAttempts()
-            ->where('attempt_number', $attemptNumber)
-            ->where('exam_type', 'pre_exam')
-            ->whereNotNull('finished_at')
-            ->first();
+        // 1. denemede ön sınav var, 2./3. denemede ön sınav atlanır
+        if ($attemptNumber === 1) {
+            $preExam = $enrollment->examAttempts()
+                ->where('attempt_number', $attemptNumber)
+                ->where('exam_type', 'pre_exam')
+                ->whereNotNull('finished_at')
+                ->first();
 
-        if (!$preExam) {
-            $this->step = 'pre_exam';
-            return;
+            if (!$preExam) {
+                $this->step = 'pre_exam_warning';
+                return;
+            }
         }
 
-        // Check video status for current attempt
-        $videoProgress = VideoProgress::where('enrollment_id', $enrollment->id)
-            ->where('attempt_number', $attemptNumber)
-            ->first();
+        // Çoklu video kontrolü
+        $courseVideos = $this->course->videos;
 
-        if (!$videoProgress || !$videoProgress->is_completed) {
-            $this->step = 'video';
-            return;
+        if ($courseVideos->isNotEmpty()) {
+            foreach ($courseVideos as $video) {
+                $progress = VideoProgress::where('enrollment_id', $enrollment->id)
+                    ->where('course_video_id', $video->id)
+                    ->where('attempt_number', $attemptNumber)
+                    ->first();
+
+                if (!$progress || !$progress->is_completed) {
+                    $this->currentVideoId = $video->id;
+                    $this->step = 'video';
+                    return;
+                }
+            }
         }
 
-        // Check post-exam status for current attempt
+        // Son sınav kontrolü (tüm videolar tamamlanmış)
         $postExam = $enrollment->examAttempts()
             ->where('attempt_number', $attemptNumber)
             ->where('exam_type', 'post_exam')
@@ -83,11 +94,10 @@ class CourseFlow extends Component
             ->first();
 
         if (!$postExam) {
-            $this->step = 'post_exam';
+            $this->step = 'post_exam_warning';
             return;
         }
 
-        // If post-exam finished but enrollment not completed/failed, show result
         $this->step = 'result';
     }
 
@@ -96,7 +106,6 @@ class CourseFlow extends Component
         $enrollment = $this->enrollment;
 
         if (!$enrollment) {
-            // Auto-enroll if not yet enrolled (shouldn't normally happen, but safety net)
             $enrollment = Enrollment::create([
                 'user_id' => auth()->id(),
                 'course_id' => $this->courseId,
@@ -110,7 +119,17 @@ class CourseFlow extends Component
             ]);
         }
 
-        $this->step = 'pre_exam';
+        $this->step = 'pre_exam_warning';
+    }
+
+    public function startExam(): void
+    {
+        // Uyarı ekranından sınava geç
+        if ($this->step === 'pre_exam_warning') {
+            $this->step = 'pre_exam';
+        } elseif ($this->step === 'post_exam_warning') {
+            $this->step = 'post_exam';
+        }
     }
 
     #[On('examCompleted')]
@@ -118,15 +137,16 @@ class CourseFlow extends Component
     {
         $this->examResult = $result;
 
-        if ($result['next_step'] === 'video') {
-            $this->step = 'video';
+        if ($result['next_step'] === 'video' && ($result['passed'] ?? false)) {
+            // Pre-exam tamamlandı, bir sonraki adıma geç (video veya post_exam_warning)
+            $this->determineStep();
+        } elseif ($result['next_step'] === 'video' && !($result['passed'] ?? true)) {
+            // Post-exam başarısız ama deneme hakkı var — sonuç ekranı göster
+            $this->step = 'result';
         } elseif ($result['next_step'] === 'completed') {
             $this->step = 'completed';
         } elseif ($result['next_step'] === 'failed') {
             $this->step = 'failed';
-        } elseif ($result['next_step'] === 'pre_exam') {
-            // Failed but can retry
-            $this->step = 'result';
         } else {
             $this->step = $result['next_step'];
         }
@@ -135,30 +155,78 @@ class CourseFlow extends Component
     #[On('videoCompleted')]
     public function onVideoCompleted(): void
     {
-        $this->step = 'post_exam';
+        // Bir sonraki tamamlanmamış videoyu bul veya hepsi bittiyse post_exam'e geç
+        $this->determineStep();
+    }
+
+    public function playVideo(int $courseVideoId): void
+    {
+        $enrollment = $this->enrollment;
+        if (!$enrollment) return;
+
+        $courseVideos = $this->course->videos;
+        $attemptNumber = $enrollment->current_attempt ?: 1;
+
+        // Hedef videonun index'ini bul
+        $targetIndex = $courseVideos->search(fn ($v) => $v->id === $courseVideoId);
+        if ($targetIndex === false) return;
+
+        // Sıralı izleme: önceki tüm videoların tamamlanmış olması gerekir
+        for ($i = 0; $i < $targetIndex; $i++) {
+            $prevVideo = $courseVideos[$i];
+            $prevProgress = VideoProgress::where('enrollment_id', $enrollment->id)
+                ->where('course_video_id', $prevVideo->id)
+                ->where('attempt_number', $attemptNumber)
+                ->first();
+
+            if (!$prevProgress || !$prevProgress->is_completed) {
+                return; // Önceki video tamamlanmamış, geçiş engelle
+            }
+        }
+
+        $this->currentVideoId = $courseVideoId;
     }
 
     public function retryFromBeginning(): void
     {
         $this->examResult = null;
-        $this->step = 'pre_exam';
+        // 2./3. denemede ön sınav atlanır, determineStep doğru adımı belirler
+        $this->determineStep();
     }
 
     public function getProgressStepsProperty(): array
     {
-        $steps = [
-            ['key' => 'pre_exam', 'label' => 'Ön Sınav'],
-            ['key' => 'video', 'label' => 'Video'],
-            ['key' => 'post_exam', 'label' => 'Son Sınav'],
-        ];
+        $attemptNumber = $this->enrollment?->current_attempt ?: 1;
+        $videoCount = $this->course->videos->count();
+        $videoLabel = $videoCount > 1 ? "Videolar ({$videoCount})" : 'Video';
 
-        $currentIndex = match ($this->step) {
-            'pre_exam' => 0,
-            'video' => 1,
-            'post_exam' => 2,
-            'result', 'completed' => 3,
-            default => -1,
-        };
+        if ($attemptNumber > 1) {
+            $steps = [
+                ['key' => 'video', 'label' => $videoLabel],
+                ['key' => 'post_exam', 'label' => 'Son Sınav'],
+            ];
+
+            $currentIndex = match ($this->step) {
+                'video' => 0,
+                'post_exam_warning', 'post_exam' => 1,
+                'result', 'completed' => 2,
+                default => -1,
+            };
+        } else {
+            $steps = [
+                ['key' => 'pre_exam', 'label' => 'Ön Sınav'],
+                ['key' => 'video', 'label' => $videoLabel],
+                ['key' => 'post_exam', 'label' => 'Son Sınav'],
+            ];
+
+            $currentIndex = match ($this->step) {
+                'pre_exam_warning', 'pre_exam' => 0,
+                'video' => 1,
+                'post_exam_warning', 'post_exam' => 2,
+                'result', 'completed' => 3,
+                default => -1,
+            };
+        }
 
         foreach ($steps as $i => &$s) {
             $s['status'] = $i < $currentIndex ? 'completed' : ($i === $currentIndex ? 'current' : 'pending');
@@ -167,12 +235,35 @@ class CourseFlow extends Component
         return $steps;
     }
 
+    public function getPreviousAttemptsProperty(): \Illuminate\Support\Collection
+    {
+        if (!$this->enrollment) {
+            return collect();
+        }
+
+        return $this->enrollment->examAttempts()
+            ->where('exam_type', 'post_exam')
+            ->whereNotNull('finished_at')
+            ->orderBy('attempt_number')
+            ->get();
+    }
+
     public function render()
     {
+        $enrollment = $this->enrollment;
+
+        // Video listesi sidebar'ı için video progress verilerini eager load et
+        if ($enrollment) {
+            $enrollment->load(['videoProgress' => function ($q) use ($enrollment) {
+                $q->where('attempt_number', $enrollment->current_attempt ?: 1);
+            }]);
+        }
+
         return view('livewire.staff.course-flow', [
             'course' => $this->course,
-            'enrollment' => $this->enrollment,
+            'enrollment' => $enrollment,
             'progressSteps' => $this->progressSteps,
+            'previousAttempts' => $this->previousAttempts,
         ]);
     }
 }

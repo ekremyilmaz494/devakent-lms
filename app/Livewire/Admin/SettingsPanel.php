@@ -5,6 +5,7 @@ namespace App\Livewire\Admin;
 use App\Models\SystemSetting;
 use Illuminate\Support\Facades\Auth;
 use Livewire\Component;
+use Illuminate\Support\Facades\Process;
 
 class SettingsPanel extends Component
 {
@@ -36,6 +37,10 @@ class SettingsPanel extends Component
     public bool $email_on_completion = true;
     public bool $email_on_certificate = true;
     public bool $email_weekly_report = false;
+
+    // Backup
+    public bool $showDeleteBackupModal = false;
+    public ?string $deletingBackupFile = null;
 
     public function mount(): void
     {
@@ -128,8 +133,111 @@ class SettingsPanel extends Component
         session()->flash('success', 'E-posta bildirim ayarları kaydedildi.');
     }
 
+    // ── Backup Methods ──
+
+    public function createBackup()
+    {
+        $dbHost = config('database.connections.mysql.host');
+        $dbPort = (string) config('database.connections.mysql.port', 3306);
+        $dbName = config('database.connections.mysql.database');
+        $dbUser = config('database.connections.mysql.username');
+        $dbPass = config('database.connections.mysql.password');
+
+        $backupDir = storage_path('app/backups');
+        if (!is_dir($backupDir)) {
+            mkdir($backupDir, 0755, true);
+        }
+
+        $filename = 'backup_' . date('Y-m-d_H-i-s') . '.sql';
+        $filepath = $backupDir . '/' . $filename;
+
+        // Using Process facade with explicit arguments to prevent injection
+        $result = Process::run([
+            'mysqldump',
+            '--host=' . $dbHost,
+            '--port=' . $dbPort,
+            '--user=' . $dbUser,
+            '--password=' . $dbPass,
+            '--single-transaction',
+            '--routines',
+            '--triggers',
+            $dbName,
+        ]);
+
+        if ($result->successful()) {
+            file_put_contents($filepath, $result->output());
+            session()->flash('success', "Veritabanı yedeği oluşturuldu: {$filename}");
+        } else {
+            session()->flash('error', 'Yedekleme başarısız oldu: ' . $result->errorOutput());
+        }
+    }
+
+    public function downloadBackup(string $filename)
+    {
+        $safeName = basename($filename);
+        $path = storage_path('app/backups/' . $safeName);
+
+        if (!file_exists($path) || !str_ends_with($safeName, '.sql')) {
+            session()->flash('error', 'Yedek dosyası bulunamadı.');
+            return;
+        }
+
+        return response()->download($path);
+    }
+
+    public function confirmDeleteBackup(string $filename): void
+    {
+        $this->deletingBackupFile = basename($filename);
+        $this->showDeleteBackupModal = true;
+    }
+
+    public function deleteBackup(): void
+    {
+        if (!$this->deletingBackupFile) {
+            return;
+        }
+
+        $safeName = basename($this->deletingBackupFile);
+        $path = storage_path('app/backups/' . $safeName);
+
+        if (file_exists($path) && str_ends_with($safeName, '.sql')) {
+            unlink($path);
+            session()->flash('success', 'Yedek dosyası silindi.');
+        } else {
+            session()->flash('error', 'Yedek dosyası bulunamadı.');
+        }
+
+        $this->showDeleteBackupModal = false;
+        $this->deletingBackupFile = null;
+    }
+
+    private function getBackups(): array
+    {
+        $backupDir = storage_path('app/backups');
+        if (!is_dir($backupDir)) {
+            return [];
+        }
+
+        $files = glob($backupDir . '/*.sql');
+        $backups = [];
+
+        foreach ($files as $file) {
+            $backups[] = [
+                'name' => basename($file),
+                'size' => filesize($file),
+                'date' => filemtime($file),
+            ];
+        }
+
+        usort($backups, fn ($a, $b) => $b['date'] - $a['date']);
+
+        return $backups;
+    }
+
     public function render()
     {
-        return view('livewire.admin.settings-panel');
+        return view('livewire.admin.settings-panel', [
+            'backups' => $this->activeTab === 'backup' ? $this->getBackups() : [],
+        ]);
     }
 }

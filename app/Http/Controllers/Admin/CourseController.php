@@ -21,4 +21,9 @@ class CourseController extends Controller
     {
         return view('admin.courses.edit', compact('course'));
     }
+
+    public function enrollments(Course $course)
+    {
+        return view('admin.courses.enrollments', compact('course'));
+    }
 }

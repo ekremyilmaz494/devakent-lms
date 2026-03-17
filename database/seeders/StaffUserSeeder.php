@@ -29,7 +29,7 @@ class StaffUserSeeder extends Seeder
                 'first_name' => $s['first_name'],
                 'last_name' => $s['last_name'],
                 'email' => $s['email'],
-                'password' => bcrypt('password'),
+                'password' => bcrypt(env('STAFF_DEFAULT_PASSWORD', 'Staff2024!')),
                 'registration_number' => $s['registration_number'],
                 'title' => $s['title'],
                 'department_id' => $dept?->id,
