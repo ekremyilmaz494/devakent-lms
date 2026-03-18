@@ -13,12 +13,20 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Activitylog\LogOptions;
 use Spatie\Activitylog\Traits\LogsActivity;
+use Illuminate\Support\Facades\Cache;
 use Spatie\Permission\Traits\HasRoles;
 
 class User extends Authenticatable
 {
     /** @use HasFactory<UserFactory> */
     use HasFactory, Notifiable, HasRoles, SoftDeletes, LogsActivity, HasApiTokens;
+
+    protected static function booted(): void
+    {
+        $clear = fn () => Cache::forget('departments.all');
+        static::saved($clear);
+        static::deleted($clear);
+    }
 
     protected $fillable = [
         'name', 'first_name', 'last_name', 'email', 'password',

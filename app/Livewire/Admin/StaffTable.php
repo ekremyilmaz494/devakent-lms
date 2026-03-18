@@ -323,10 +323,14 @@ class StaffTable extends AdminComponent
             return;
         }
 
-        return Excel::download(
-            new StaffExport($this->search, $this->filterDepartment, $this->filterStatus),
-            'personeller_' . date('Y-m-d') . '.xlsx'
-        );
+        return response()->streamDownload(function () {
+            echo Excel::raw(
+                new StaffExport($this->search, $this->filterDepartment, $this->filterStatus),
+                \Maatwebsite\Excel\Excel::XLSX
+            );
+        }, 'personeller_' . date('Y-m-d') . '.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     public function exportPdf()
@@ -351,7 +355,8 @@ class StaffTable extends AdminComponent
 
         return response()->streamDownload(
             fn () => print($pdf->output()),
-            'personeller_' . date('Y-m-d') . '.pdf'
+            'personeller_' . date('Y-m-d') . '.pdf',
+            ['Content-Type' => 'application/pdf']
         );
     }
 

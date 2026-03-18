@@ -276,6 +276,12 @@
                         <tr class="bg-gray-50/80 dark:bg-gray-700/40 border-b border-gray-200 dark:border-gray-700">
                             @php
                                 $thBase = 'px-4 py-3 text-xs font-semibold text-gray-700 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors';
+                                $sortIcon = function($field) use ($sortField, $sortDirection) {
+                                    if ($sortField !== $field) return '<svg class="w-3 h-3 text-gray-300 dark:text-gray-600 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>';
+                                    return $sortDirection === 'asc'
+                                        ? '<svg class="w-3 h-3 text-primary-500 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>'
+                                        : '<svg class="w-3 h-3 text-primary-500 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
+                                };
                             @endphp
                             <th wire:click="sortBy('name')" class="{{ $thBase }} text-left">{{ __('lms.department') }} {!! $sortIcon('name') !!}</th>
                             <th wire:click="sortBy('staff_count')" class="{{ $thBase }} text-center">{{ __('lms.staff') }} {!! $sortIcon('staff_count') !!}</th>
@@ -337,6 +343,12 @@
                         <tr class="bg-gray-50/80 dark:bg-gray-700/40 border-b border-gray-200 dark:border-gray-700">
                             @php
                                 $thBase = 'px-4 py-3 text-xs font-semibold text-gray-700 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors';
+                                $sortIcon = function($field) use ($sortField, $sortDirection) {
+                                    if ($sortField !== $field) return '<svg class="w-3 h-3 text-gray-300 dark:text-gray-600 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>';
+                                    return $sortDirection === 'asc'
+                                        ? '<svg class="w-3 h-3 text-primary-500 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>'
+                                        : '<svg class="w-3 h-3 text-primary-500 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
+                                };
                             @endphp
                             <th wire:click="sortBy('name')" class="{{ $thBase }} text-left">{{ __('lms.staff') }} {!! $sortIcon('name') !!}</th>
                             <th wire:click="sortBy('department')" class="{{ $thBase }} text-left">{{ __('lms.department') }} {!! $sortIcon('department') !!}</th>
@@ -419,6 +431,12 @@
                         <tr class="bg-gray-50/80 dark:bg-gray-700/40 border-b border-gray-200 dark:border-gray-700">
                             @php
                                 $thBase = 'px-4 py-3 text-xs font-semibold text-gray-700 dark:text-gray-400 uppercase tracking-wider cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700/60 transition-colors';
+                                $sortIcon = function($field) use ($sortField, $sortDirection) {
+                                    if ($sortField !== $field) return '<svg class="w-3 h-3 text-gray-300 dark:text-gray-600 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16V4m0 0L3 8m4-4l4 4m6 0v12m0 0l4-4m-4 4l-4-4"/></svg>';
+                                    return $sortDirection === 'asc'
+                                        ? '<svg class="w-3 h-3 text-primary-500 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 15l7-7 7 7"/></svg>'
+                                        : '<svg class="w-3 h-3 text-primary-500 inline ml-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>';
+                                };
                             @endphp
                             <th wire:click="sortBy('month')" class="{{ $thBase }} text-left">{{ __('lms.period_label') }} {!! $sortIcon('month') !!}</th>
                             <th wire:click="sortBy('total')" class="{{ $thBase }} text-center">{{ __('lms.total_enrollments') }} {!! $sortIcon('total') !!}</th>

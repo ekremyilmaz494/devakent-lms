@@ -1,5 +1,5 @@
 <div x-data="{
-    timeRemaining: @entangle('timeRemaining'),
+    timeRemaining: @js($timeRemaining),
     isFinished: @entangle('isFinished'),
     showConfirmModal: false,
     timerInterval: null,

@@ -110,9 +110,12 @@ class VideoPlayer extends Component
             }
         });
 
-        if ($this->isCompleted) {
-            $this->dispatch('videoCompleted');
-        }
+        // Overlay gösterilecek, kullanıcı "Devam Et" ile geçecek
+    }
+
+    public function goToNext(): void
+    {
+        $this->dispatch('videoCompleted');
     }
 
     public function markCompleted(): void

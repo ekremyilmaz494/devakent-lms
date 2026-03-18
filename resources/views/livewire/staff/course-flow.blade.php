@@ -1,7 +1,7 @@
 <div class="space-y-4 md:space-y-6">
-    {{-- Course Header --}}
+    {{-- ═══ Course Header ═══ --}}
     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div class="h-2 bg-gradient-to-r from-primary-500 to-primary-600" style="background-color: {{ $course->category?->color ?? '#D97706' }}"></div>
+        <div class="h-1.5 bg-gradient-to-r from-primary-500 via-primary-400 to-primary-600" style="background: linear-gradient(90deg, {{ $course->category?->color ?? '#D97706' }}, #F59E0B, {{ $course->category?->color ?? '#D97706' }})"></div>
         <div class="p-4 md:p-6">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div>
@@ -14,70 +14,138 @@
                     <h1 class="text-lg md:text-xl font-bold text-gray-800 dark:text-white">{{ $course->title }}</h1>
                     <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">{{ $course->description }}</p>
                 </div>
-                <a href="{{ route('staff.courses.index') }}" class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors">
+                <a href="{{ route('staff.courses.index') }}" class="flex items-center gap-1.5 px-3 py-2 text-sm text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg transition-colors flex-shrink-0">
                     <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18"/></svg>
                     Geri
                 </a>
             </div>
 
-            {{-- Course Info Pills --}}
-            <div class="flex flex-wrap gap-2 md:gap-4 mt-3 md:mt-4 text-xs md:text-sm text-gray-600 dark:text-gray-400">
-                <div class="flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    Sınav: {{ $course->exam_duration_minutes ?? 30 }} dk
+            {{-- ─── Info Cards Grid ─── --}}
+            <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-2 md:gap-3 mt-4 md:mt-5">
+                <div class="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-3 flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-[18px] h-[18px] text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-medium">Sınav Süresi</p>
+                        <p class="text-sm font-bold text-gray-800 dark:text-white">{{ $course->exam_duration_minutes ?? 30 }} dk</p>
+                    </div>
                 </div>
-                <div class="flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    Geçme: %{{ $course->passing_score }}
+
+                <div class="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-3 flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-[18px] h-[18px] text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-medium">Geçme Notu</p>
+                        <p class="text-sm font-bold text-gray-800 dark:text-white">%{{ $course->passing_score }}</p>
+                    </div>
                 </div>
-                <div class="flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
-                    {{ $course->max_attempts }} deneme hakkı
+
+                <div class="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-3 flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-[18px] h-[18px] text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-medium">Deneme Hakkı</p>
+                        <p class="text-sm font-bold text-gray-800 dark:text-white">{{ $course->max_attempts }}</p>
+                    </div>
                 </div>
-                <div class="flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-                    {{ $course->questions->count() }} soru
+
+                <div class="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-3 flex items-center gap-2.5">
+                    <div class="w-9 h-9 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-[18px] h-[18px] text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-medium">Soru Sayısı</p>
+                        <p class="text-sm font-bold text-gray-800 dark:text-white">{{ $course->questions->count() }}</p>
+                    </div>
                 </div>
+
                 @if($course->end_date)
-                <div class="flex items-center gap-1.5">
-                    <svg class="w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
-                    Son tarih: {{ $course->end_date->format('d.m.Y') }}
+                <div class="bg-gray-50 dark:bg-gray-700/40 rounded-xl p-3 flex items-center gap-2.5 col-span-2 sm:col-span-1">
+                    <div class="w-9 h-9 rounded-lg bg-red-100 dark:bg-red-900/30 flex items-center justify-center flex-shrink-0">
+                        <svg class="w-[18px] h-[18px] text-red-600 dark:text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </div>
+                    <div>
+                        <p class="text-[10px] uppercase tracking-wider text-gray-400 dark:text-gray-500 font-medium">Son Tarih</p>
+                        <p class="text-sm font-bold text-gray-800 dark:text-white">{{ $course->end_date->format('d.m.Y') }}</p>
+                    </div>
                 </div>
                 @endif
             </div>
+
+            {{-- ─── Genel İlerleme Barı ─── --}}
+            @if($enrollment && !in_array($step, ['intro', 'completed', 'failed']))
+                @php
+                    $totalVideoCount = $course->videos->count();
+                    $completedVideoCount = $enrollment->videoProgress->where('is_completed', true)->count();
+                    $overallPercent = match(true) {
+                        in_array($step, ['pre_exam_warning', 'pre_exam']) => 10,
+                        $step === 'video' && $totalVideoCount > 0 => 10 + round(($completedVideoCount / $totalVideoCount) * 60),
+                        $step === 'video' => 40,
+                        in_array($step, ['post_exam_warning', 'post_exam']) => 80,
+                        $step === 'result' => 90,
+                        default => 0,
+                    };
+                @endphp
+                <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
+                    <div class="flex items-center justify-between mb-2">
+                        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">Genel İlerleme</span>
+                        <span class="text-sm font-bold text-primary-600 dark:text-primary-400">%{{ $overallPercent }}</span>
+                    </div>
+                    <div class="h-2.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
+                        <div class="h-full rounded-full bg-gradient-to-r from-primary-600 via-primary-500 to-primary-400 transition-all duration-700 ease-out"
+                             style="width: {{ $overallPercent }}%"></div>
+                    </div>
+                </div>
+            @endif
         </div>
     </div>
 
-    {{-- Progress Stepper (only visible during active flow) --}}
+    {{-- ═══ Progress Stepper ═══ --}}
     @if(!in_array($step, ['intro', 'completed', 'failed', 'pre_exam_warning', 'post_exam_warning']))
     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
-        <div class="flex items-center justify-between max-w-lg w-full mx-auto">
+        <div class="flex items-center justify-between max-w-xl w-full mx-auto">
             @foreach($progressSteps as $i => $ps)
                 <div class="flex items-center {{ $i < count($progressSteps) - 1 ? 'flex-1' : '' }}">
-                    <div class="flex flex-col items-center">
-                        <div class="w-10 h-10 rounded-full flex items-center justify-center text-sm font-bold transition-all
-                            @if($ps['status'] === 'completed') bg-emerald-500 text-white
-                            @elseif($ps['status'] === 'current') bg-primary-500 text-white ring-4 ring-primary-100 dark:ring-primary-900/50
-                            @else bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400
-                            @endif">
-                            @if($ps['status'] === 'completed')
-                                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                            @else
-                                {{ $i + 1 }}
+                    <div class="flex flex-col items-center relative">
+                        {{-- Step Circle --}}
+                        <div class="relative">
+                            @if($ps['status'] === 'current')
+                                <div class="absolute inset-0 rounded-full bg-primary-400/30 animate-ping"></div>
                             @endif
+                            <div class="relative w-11 h-11 rounded-full flex items-center justify-center text-sm font-bold transition-all duration-300
+                                @if($ps['status'] === 'completed') bg-emerald-500 text-white shadow-md shadow-emerald-500/25
+                                @elseif($ps['status'] === 'current') bg-primary-500 text-white shadow-lg shadow-primary-500/30 ring-4 ring-primary-100 dark:ring-primary-900/50
+                                @else bg-gray-200 dark:bg-gray-700 text-gray-500 dark:text-gray-400
+                                @endif">
+                                @if($ps['status'] === 'completed')
+                                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                @else
+                                    {{ $i + 1 }}
+                                @endif
+                            </div>
                         </div>
-                        <span class="text-xs font-medium mt-2 {{ $ps['status'] === 'current' ? 'text-primary-600 dark:text-primary-400' : 'text-gray-600 dark:text-gray-400' }}">{{ $ps['label'] }}</span>
+                        <span class="text-xs font-semibold mt-2.5 whitespace-nowrap
+                            @if($ps['status'] === 'completed') text-emerald-600 dark:text-emerald-400
+                            @elseif($ps['status'] === 'current') text-primary-600 dark:text-primary-400
+                            @else text-gray-400 dark:text-gray-500
+                            @endif">{{ $ps['label'] }}</span>
                     </div>
+                    {{-- Connecting Line --}}
                     @if($i < count($progressSteps) - 1)
-                        <div class="flex-1 h-0.5 mx-2 md:mx-4 mt-[-20px] {{ $ps['status'] === 'completed' ? 'bg-emerald-400' : 'bg-gray-200 dark:bg-gray-700' }}"></div>
+                        <div class="flex-1 mx-3 md:mx-5 mt-[-22px]">
+                            <div class="h-[3px] rounded-full {{ $ps['status'] === 'completed' ? 'bg-emerald-400 dark:bg-emerald-500' : 'bg-gray-200 dark:bg-gray-700' }} transition-colors duration-500"></div>
+                        </div>
                     @endif
                 </div>
             @endforeach
         </div>
 
         @if($enrollment)
-        <div class="text-center mt-3">
-            <span class="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300">
+        <div class="text-center mt-4">
+            <span class="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-full text-xs font-bold bg-primary-100 dark:bg-primary-900/40 text-primary-700 dark:text-primary-300">
                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
                 Deneme: {{ $enrollment->current_attempt ?: 1 }} / {{ $course->max_attempts }}
             </span>
@@ -178,20 +246,34 @@
         @php
             $courseVideos = $course->videos;
             $attemptNumber = $enrollment->current_attempt ?: 1;
+            $sidebarCompletedCount = $enrollment->videoProgress->where('is_completed', true)->count();
         @endphp
 
         @if($courseVideos->count() > 1)
-            {{-- Çoklu Video: Sidebar + Player Layout --}}
-            <div class="grid grid-cols-1 lg:grid-cols-4 gap-3 md:gap-6">
-                {{-- Video Listesi Sidebar --}}
-                <div class="lg:col-span-1">
-                    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4">
-                        <h3 class="text-sm font-bold text-gray-800 dark:text-white mb-3 flex items-center gap-2">
-                            <svg class="w-4 h-4 text-primary-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
-                            Video Listesi
-                            <span class="text-xs font-normal text-gray-500">({{ $courseVideos->count() }})</span>
-                        </h3>
-                        <div class="space-y-2">
+            {{-- ═══ Çoklu Video: Cinema Layout ═══ --}}
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4 md:gap-5">
+
+                {{-- ─── Video Listesi Sidebar (Dark) ─── --}}
+                <div class="lg:col-span-3 order-2 lg:order-1">
+                    <div class="bg-gray-900 rounded-2xl overflow-hidden shadow-xl ring-1 ring-white/[0.06]">
+                        {{-- Sidebar Header --}}
+                        <div class="px-4 py-3.5 border-b border-white/[0.06]">
+                            <h3 class="text-sm font-bold text-gray-100 flex items-center gap-2">
+                                <svg class="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 10h16M4 14h16M4 18h16"/></svg>
+                                Video Listesi
+                            </h3>
+                            {{-- Mini Progress --}}
+                            <div class="flex items-center gap-2.5 mt-2.5">
+                                <div class="flex-1 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                                    <div class="h-full rounded-full bg-emerald-500 transition-all duration-500"
+                                         style="width: {{ $courseVideos->count() > 0 ? round(($sidebarCompletedCount / $courseVideos->count()) * 100) : 0 }}%"></div>
+                                </div>
+                                <span class="text-[11px] font-semibold text-gray-500 tabular-nums">{{ $sidebarCompletedCount }}/{{ $courseVideos->count() }}</span>
+                            </div>
+                        </div>
+
+                        {{-- Video Items --}}
+                        <div class="p-2 space-y-0.5 max-h-[420px] overflow-y-auto scrollbar-thin">
                             @foreach($courseVideos as $i => $video)
                                 @php
                                     $vProgress = $enrollment->videoProgress
@@ -200,8 +282,9 @@
                                     $vCompleted = $vProgress?->is_completed ?? false;
                                     $vStarted = $vProgress !== null;
                                     $isActive = $video->id === $currentVideoId;
+                                    $videoDuration = $video->video_duration_seconds ?? 0;
 
-                                    // Kilit kontrolü: önceki video tamamlanmış mı
+                                    // Kilit kontrolü
                                     $isLocked = false;
                                     if ($i > 0) {
                                         $prevVideo = $courseVideos[$i - 1];
@@ -216,45 +299,54 @@
                                 <button
                                     wire:click="playVideo({{ $video->id }})"
                                     @if($isLocked) disabled @endif
-                                    class="w-full text-left p-3 rounded-xl border transition-all
-                                        {{ $isActive ? 'border-primary-500 bg-primary-50 dark:bg-primary-900/20 shadow-sm' : '' }}
-                                        {{ $isLocked ? 'opacity-50 cursor-not-allowed border-gray-200 dark:border-gray-700' : 'hover:bg-gray-50 dark:hover:bg-gray-700/50 cursor-pointer' }}
-                                        {{ $vCompleted && !$isActive ? 'border-emerald-300 dark:border-emerald-700/50' : (!$isActive && !$isLocked ? 'border-gray-200 dark:border-gray-700' : '') }}
+                                    class="w-full text-left p-3 rounded-xl flex items-center gap-3 transition-all duration-200
+                                        {{ $isActive ? 'bg-primary-500/10 border-l-[3px] border-primary-500 pl-[9px]' : 'border-l-[3px] border-transparent pl-[9px]' }}
+                                        {{ $isLocked ? 'opacity-40 cursor-not-allowed' : 'hover:bg-white/[0.04] cursor-pointer' }}
                                     ">
-                                    <div class="flex items-center gap-3">
-                                        {{-- Durum İkonu --}}
-                                        @if($vCompleted)
-                                            <div class="w-7 h-7 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
-                                                <svg class="w-4 h-4 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                                            </div>
-                                        @elseif($isLocked)
-                                            <div class="w-7 h-7 rounded-full bg-gray-200 dark:bg-gray-700 flex items-center justify-center flex-shrink-0">
-                                                <svg class="w-3.5 h-3.5 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
-                                            </div>
-                                        @else
-                                            <div class="w-7 h-7 rounded-full {{ $isActive ? 'bg-primary-500' : 'bg-primary-100 dark:bg-primary-900/30' }} flex items-center justify-center flex-shrink-0">
-                                                @if($isActive)
-                                                    <svg class="w-3.5 h-3.5 text-white" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                                                @else
-                                                    <span class="text-xs font-bold text-primary-600 dark:text-primary-400">{{ $i + 1 }}</span>
-                                                @endif
-                                            </div>
-                                        @endif
+                                    {{-- Status Circle --}}
+                                    @if($vCompleted)
+                                        <div class="w-8 h-8 rounded-full bg-emerald-500/15 flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-4 h-4 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                                        </div>
+                                    @elseif($isLocked)
+                                        <div class="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center flex-shrink-0">
+                                            <svg class="w-3.5 h-3.5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                                        </div>
+                                    @elseif($isActive)
+                                        <div class="w-8 h-8 rounded-full bg-primary-500 flex items-center justify-center flex-shrink-0 shadow-md shadow-primary-500/30">
+                                            <svg class="w-3.5 h-3.5 text-white ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                                        </div>
+                                    @else
+                                        <div class="w-8 h-8 rounded-full bg-gray-800 flex items-center justify-center flex-shrink-0">
+                                            <span class="text-xs font-bold text-gray-400">{{ $i + 1 }}</span>
+                                        </div>
+                                    @endif
 
-                                        <div class="flex-1 min-w-0">
-                                            <p class="text-sm font-medium text-gray-800 dark:text-gray-200 truncate">{{ $video->title }}</p>
-                                            <p class="text-[11px] mt-0.5
-                                                {{ $vCompleted ? 'text-emerald-600 dark:text-emerald-400' : ($vStarted && !$isLocked ? 'text-amber-600 dark:text-amber-400' : 'text-gray-400') }}">
-                                                @if($vCompleted)
-                                                    Tamamlandı
-                                                @elseif($vStarted && !$isLocked)
-                                                    Devam ediyor
-                                                @elseif($isLocked)
-                                                    Kilitli
-                                                @else
-                                                    Başlanmadı
+                                    {{-- Title + Meta --}}
+                                    <div class="flex-1 min-w-0">
+                                        <p class="text-sm font-medium truncate {{ $isActive ? 'text-gray-100' : ($vCompleted ? 'text-gray-300' : 'text-gray-400') }}">{{ $video->title }}</p>
+                                        <div class="flex items-center gap-2 mt-1">
+                                            {{-- Duration --}}
+                                            @if($videoDuration > 0)
+                                                <span class="text-[10px] text-gray-600 tabular-nums">
+                                                    {{ floor($videoDuration / 60) }}:{{ str_pad($videoDuration % 60, 2, '0', STR_PAD_LEFT) }}
+                                                </span>
+                                            @endif
+                                            {{-- Status Badge --}}
+                                            <span class="text-[10px] font-medium px-1.5 py-0.5 rounded-full
+                                                @if($vCompleted) bg-emerald-500/10 text-emerald-400
+                                                @elseif($isActive) bg-primary-500/10 text-primary-400
+                                                @elseif($vStarted && !$isLocked) bg-amber-500/10 text-amber-400
+                                                @elseif($isLocked) text-gray-600
+                                                @else text-gray-600
+                                                @endif">
+                                                @if($vCompleted) Tamamlandı
+                                                @elseif($isActive) İzleniyor
+                                                @elseif($vStarted && !$isLocked) Devam
+                                                @elseif($isLocked) Kilitli
+                                                @else Başlanmadı
                                                 @endif
-                                            </p>
+                                            </span>
                                         </div>
                                     </div>
                                 </button>
@@ -263,8 +355,8 @@
                     </div>
                 </div>
 
-                {{-- Video Player --}}
-                <div class="lg:col-span-3">
+                {{-- ─── Video Player ─── --}}
+                <div class="lg:col-span-9 order-1 lg:order-2">
                     @if($currentVideoId)
                         @livewire('staff.video-player', [
                             'enrollmentId' => $enrollment->id,
@@ -275,10 +367,12 @@
             </div>
         @elseif($courseVideos->count() === 1)
             {{-- Tekli Video: Sadece Player --}}
-            @livewire('staff.video-player', [
-                'enrollmentId' => $enrollment->id,
-                'courseVideoId' => $courseVideos->first()->id,
-            ], key('video-' . $courseVideos->first()->id . '-' . $attemptNumber))
+            <div class="max-w-5xl mx-auto">
+                @livewire('staff.video-player', [
+                    'enrollmentId' => $enrollment->id,
+                    'courseVideoId' => $courseVideos->first()->id,
+                ], key('video-' . $courseVideos->first()->id . '-' . $attemptNumber))
+            </div>
         @else
             {{-- Video Yok: Demo Tamamlama --}}
             <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-5 md:p-8 text-center">

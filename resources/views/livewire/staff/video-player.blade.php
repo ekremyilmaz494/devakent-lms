@@ -3,17 +3,20 @@
     isPlaying: false,
     currentTime: 0,
     duration: 0,
-    watchedSeconds: @entangle('watchedSeconds'),
+    watchedSeconds: @js($watchedSeconds),
     isCompleted: @entangle('isCompleted'),
     useHls: @js($useHls),
     hlsUrl: @js($hlsUrl),
     hlsInstance: null,
     progressInterval: null,
+    isSyncing: false,
+    showOverlay: false,
+    countdown: 5,
+    countdownInterval: null,
     init() {
         this.$nextTick(() => {
             this.videoElement = this.$refs.videoEl;
             if (this.videoElement) {
-                // HLS.js initialization
                 if (this.useHls && this.hlsUrl) {
                     this.initHls();
                 }
@@ -22,10 +25,13 @@
 
                 this.videoElement.addEventListener('loadedmetadata', () => {
                     this.duration = this.videoElement.duration;
-                    // Süre bilgisi DB'de yoksa, gerçek süreyi Livewire'a bildir
                     if (this.duration > 0) {
                         $wire.setDuration(Math.floor(this.duration));
                     }
+                });
+
+                this.videoElement.addEventListener('timeupdate', () => {
+                    this.currentTime = this.videoElement.currentTime;
                 });
 
                 this.videoElement.addEventListener('play', () => {
@@ -45,18 +51,33 @@
                     this.sendProgress();
                 });
 
-                // Prevent seeking forward beyond watched position
                 this.videoElement.addEventListener('seeking', () => {
-                    if (this.videoElement.currentTime > this.watchedSeconds + 2) {
+                    if (!this.isSyncing && this.videoElement.currentTime > this.watchedSeconds + 2) {
                         this.videoElement.currentTime = this.watchedSeconds;
                     }
                 });
 
-                // Disable playback rate changes
                 this.videoElement.playbackRate = 1.0;
                 this.videoElement.addEventListener('ratechange', () => {
                     this.videoElement.playbackRate = 1.0;
                 });
+            }
+        });
+
+        this.$watch('isCompleted', (val) => {
+            if (val && !this.showOverlay) {
+                this.showOverlay = true;
+                this.countdown = 5;
+                if (this.videoElement && !this.videoElement.paused) {
+                    this.videoElement.pause();
+                }
+                this.countdownInterval = setInterval(() => {
+                    this.countdown--;
+                    if (this.countdown <= 0) {
+                        clearInterval(this.countdownInterval);
+                        $wire.goToNext();
+                    }
+                }, 1000);
             }
         });
     },
@@ -70,17 +91,15 @@
             this.hlsInstance.loadSource(this.hlsUrl);
             this.hlsInstance.attachMedia(this.videoElement);
         } else if (this.videoElement.canPlayType('application/vnd.apple.mpegurl')) {
-            // Native HLS (Safari)
             this.videoElement.src = this.hlsUrl;
         }
     },
     startProgressTracking() {
         this.progressInterval = setInterval(() => {
             if (this.videoElement && this.isPlaying) {
-                this.currentTime = Math.floor(this.videoElement.currentTime);
                 this.sendProgress();
             }
-        }, 10000); // Every 10 seconds
+        }, 15000);
     },
     stopProgressTracking() {
         if (this.progressInterval) {
@@ -91,56 +110,50 @@
     sendProgress() {
         if (this.videoElement) {
             const current = Math.floor(this.videoElement.currentTime);
-            const watched = Math.max(this.watchedSeconds, current);
-            $wire.updateProgress(current, watched);
+            this.watchedSeconds = Math.max(this.watchedSeconds, current);
+            this.isSyncing = true;
+            $wire.updateProgress(current, this.watchedSeconds).then(() => {
+                this.isSyncing = false;
+            });
         }
     },
     formatTime(seconds) {
         const m = Math.floor(seconds / 60);
         const s = Math.floor(seconds % 60);
         return String(m).padStart(2, '0') + ':' + String(s).padStart(2, '0');
+    },
+    skipCountdown() {
+        if (this.countdownInterval) clearInterval(this.countdownInterval);
+        $wire.goToNext();
     }
-}" class="space-y-4">
+}">
 
-    {{-- Video Header --}}
-    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-3 md:p-4">
-        <div class="flex items-center justify-between gap-2">
-            <div class="flex items-center gap-2 md:gap-3 min-w-0">
-                <div class="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center flex-shrink-0">
-                    <svg class="w-4 h-4 md:w-5 md:h-5 text-primary-600 dark:text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+    {{-- ═══ Theater Mode Container ═══ --}}
+    <div class="bg-gray-900 rounded-2xl overflow-hidden shadow-2xl shadow-black/25 ring-1 ring-white/[0.06]">
+
+        {{-- ─── Title Bar ─── --}}
+        <div class="px-4 md:px-5 py-3 flex items-center justify-between bg-gray-900/80 border-b border-white/[0.06]">
+            <div class="flex items-center gap-3 min-w-0">
+                <div class="w-8 h-8 rounded-lg bg-primary-500/15 flex items-center justify-center flex-shrink-0">
+                    <svg class="w-4 h-4 text-primary-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                 </div>
                 <div class="min-w-0">
-                    <h2 class="font-bold text-sm md:text-base text-gray-800 dark:text-white truncate">{{ $videoTitle ?: 'Video İzleme' }}</h2>
-                    <p class="text-[11px] md:text-xs text-gray-600 dark:text-gray-400 hidden sm:block">Videoyu eksiksiz izlemeniz gerekmektedir</p>
+                    <h3 class="text-sm font-semibold text-gray-100 truncate">{{ $videoTitle ?: 'Video' }}</h3>
+                    <p class="text-[11px] text-gray-500 hidden sm:block">Videoyu eksiksiz izlemeniz gerekmektedir</p>
                 </div>
             </div>
-
-            <div class="flex items-center gap-2 md:gap-3 flex-shrink-0">
-                {{-- Progress --}}
-                <div class="text-right">
-                    <p class="text-sm font-bold {{ $isCompleted ? 'text-emerald-600 dark:text-emerald-400' : 'text-gray-700 dark:text-gray-300' }}">%{{ $progressPercent }}</p>
-                    <p class="text-xs text-gray-600 dark:text-gray-400">İzlendi</p>
-                </div>
-
-                @if($isCompleted)
-                    <div class="w-10 h-10 rounded-xl bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center">
-                        <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                    </div>
-                @endif
+            <div class="flex items-center gap-2.5 flex-shrink-0">
+                <span class="text-xs font-mono text-gray-500 hidden sm:inline" x-text="formatTime(currentTime) + ' / ' + formatTime(duration)"></span>
+                <span class="text-xs font-semibold px-2.5 py-1 rounded-full
+                    {{ $isCompleted ? 'bg-emerald-500/15 text-emerald-400' : 'bg-primary-500/15 text-primary-400' }}">
+                    %{{ $progressPercent }} <span class="font-normal hidden sm:inline">İzlendi</span>
+                </span>
             </div>
         </div>
 
-        {{-- Progress Bar --}}
-        <div class="mt-3 h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div class="h-full rounded-full transition-all duration-500 {{ $isCompleted ? 'bg-gradient-to-r from-emerald-400 to-green-500' : 'bg-gradient-to-r from-primary-500 to-primary-600' }}"
-                 style="width: {{ $progressPercent }}%"></div>
-        </div>
-    </div>
-
-    {{-- Video Player --}}
-    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+        {{-- ─── Video Player ─── --}}
         @if($videoPath)
-            <div class="relative bg-black aspect-video">
+            <div class="relative bg-black aspect-video group">
                 <video x-ref="videoEl"
                     class="w-full h-full"
                     controlsList="nodownload noplaybackrate"
@@ -153,78 +166,93 @@
                     @endif
                 </video>
 
-                {{-- Custom Controls Overlay (non-completed state) --}}
+                {{-- Custom Controls (video tamamlanmamışken) --}}
                 @if(!$isCompleted)
-                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-3 md:p-4">
+                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 via-black/30 to-transparent p-3 md:p-4 opacity-0 group-hover:opacity-100 transition-opacity duration-300"
+                     :class="{ '!opacity-100': !isPlaying }">
                     <div class="flex items-center gap-3 md:gap-4">
-                        {{-- Play/Pause --}}
                         <button @click="isPlaying ? videoElement.pause() : videoElement.play()"
-                            class="w-9 h-9 md:w-10 md:h-10 rounded-full bg-white/20 hover:bg-white/30 flex items-center justify-center text-white transition-colors">
-                            <svg x-show="!isPlaying" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
-                            <svg x-show="isPlaying" class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
+                            class="w-10 h-10 rounded-full bg-white/15 hover:bg-white/25 backdrop-blur-sm flex items-center justify-center text-white transition-all hover:scale-110 active:scale-95">
+                            <svg x-show="!isPlaying" class="w-5 h-5 ml-0.5" fill="currentColor" viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>
+                            <svg x-show="isPlaying" x-cloak class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z"/></svg>
                         </button>
-
-                        {{-- Time --}}
-                        <span class="text-white text-sm font-mono" x-text="formatTime(currentTime) + ' / ' + formatTime(duration)"></span>
-
-                        {{-- Spacer --}}
+                        <span class="text-white/70 text-sm font-mono tabular-nums" x-text="formatTime(currentTime) + ' / ' + formatTime(duration)"></span>
                         <div class="flex-1"></div>
-
-                        {{-- No speed indicator --}}
-                        <span class="text-white/60 text-xs">1.0x (sabit)</span>
+                        <span class="text-white/30 text-xs font-medium tracking-wide">1.0x</span>
                     </div>
                 </div>
                 @endif
+
+                {{-- ═══ Tamamlanma Overlay ═══ --}}
+                <div x-show="showOverlay"
+                     x-transition:enter="transition ease-out duration-500"
+                     x-transition:enter-start="opacity-0"
+                     x-transition:enter-end="opacity-100"
+                     x-cloak
+                     class="absolute inset-0 bg-black/70 backdrop-blur-sm flex items-center justify-center z-20">
+                    <div class="text-center px-4">
+                        {{-- Animated Checkmark --}}
+                        <div class="relative w-20 h-20 mx-auto mb-5">
+                            <div class="absolute inset-0 rounded-full bg-emerald-500/20 animate-ping"></div>
+                            <div class="relative w-20 h-20 rounded-full bg-gradient-to-br from-emerald-400 to-emerald-600 flex items-center justify-center shadow-lg shadow-emerald-500/30">
+                                <svg class="w-10 h-10 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                            </div>
+                        </div>
+
+                        <h3 class="text-xl font-bold text-white mb-1">Video Tamamlandı!</h3>
+                        <p class="text-sm text-gray-400 mb-6">Sonraki adıma geçebilirsiniz</p>
+
+                        <button @click="skipCountdown()"
+                                class="inline-flex items-center gap-2.5 px-7 py-3 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-semibold rounded-xl transition-all shadow-lg shadow-primary-500/25 hover:shadow-primary-500/40 hover:-translate-y-0.5 active:translate-y-0">
+                            <span>Devam Et</span>
+                            <span class="text-xs bg-white/20 px-2 py-0.5 rounded-full tabular-nums min-w-[28px]" x-text="countdown + 's'"></span>
+                            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"/></svg>
+                        </button>
+                    </div>
+                </div>
             </div>
         @else
-            {{-- No video - Demo mode --}}
-            <div class="aspect-video bg-gradient-to-br from-gray-100 to-gray-200 dark:from-gray-700 dark:to-gray-800 flex items-center justify-center">
+            {{-- Video Yok — Placeholder --}}
+            <div class="aspect-video bg-gradient-to-br from-gray-800 to-gray-900 flex items-center justify-center">
                 <div class="text-center">
-                    <div class="w-16 h-16 bg-gray-300 dark:bg-gray-600 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <svg class="w-8 h-8 text-gray-600 dark:text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                    <div class="w-16 h-16 bg-gray-700/60 rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg class="w-8 h-8 text-gray-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
                     </div>
-                    <p class="text-gray-600 dark:text-gray-400 font-medium">Video henüz yüklenmemiş</p>
-                    <p class="text-sm text-gray-600 dark:text-gray-400 mt-1">Demo modunda devam edebilirsiniz</p>
+                    <p class="text-gray-400 font-medium">Video henüz yüklenmemiş</p>
+                    <p class="text-sm text-gray-500 mt-1">Demo modunda devam edebilirsiniz</p>
                 </div>
             </div>
         @endif
+
+        {{-- ─── Progress Bar ─── --}}
+        <div class="h-1.5 bg-gray-800">
+            <div class="h-full rounded-r-full transition-all duration-700 ease-out
+                {{ $isCompleted ? 'bg-gradient-to-r from-emerald-500 to-emerald-400' : 'bg-gradient-to-r from-primary-600 via-primary-500 to-primary-400' }}"
+                 style="width: {{ $progressPercent }}%"></div>
+        </div>
     </div>
 
-    {{-- Instructions & Actions --}}
-    <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
-        <div class="flex items-start gap-3 md:gap-4">
-            <div class="w-8 h-8 md:w-10 md:h-10 rounded-xl bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center flex-shrink-0">
-                <svg class="w-4 h-4 md:w-5 md:h-5 text-amber-600 dark:text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            </div>
-            <div class="flex-1">
-                <h3 class="font-semibold text-sm md:text-base text-gray-800 dark:text-white mb-1">Video İzleme Kuralları</h3>
-                <ul class="text-xs md:text-sm text-gray-600 dark:text-gray-400 space-y-1">
-                    <li>- Videoyu en az %90 oranında izlemeniz gerekmektedir</li>
-                    <li>- İleri sarma engellenmektedir</li>
-                    <li>- Hız değiştirme engellenmektedir</li>
-                    <li>- İlerlemeniz otomatik olarak kaydedilmektedir</li>
-                </ul>
-            </div>
+    {{-- ─── Alt Bilgi Satırı ─── --}}
+    <div class="mt-2.5 flex items-center justify-between px-1">
+        <div class="flex items-center gap-2 text-[11px] text-gray-500 dark:text-gray-500">
+            <span class="inline-flex items-center gap-1">
+                <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>
+                İleri sarma engelli
+            </span>
+            <span class="text-gray-600 dark:text-gray-600">&middot;</span>
+            <span>Hız: 1.0x sabit</span>
+            <span class="text-gray-600 dark:text-gray-600">&middot;</span>
+            <span>Otomatik kayıt</span>
         </div>
 
-        @if($isCompleted)
-            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700 flex items-center justify-between">
-                <div class="flex items-center gap-2 text-emerald-600 dark:text-emerald-400">
-                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                    <span class="text-sm font-medium">Video tamamlandı</span>
-                </div>
-                {{-- Auto-dispatch handled by Livewire --}}
-            </div>
-        @elseif(!$videoPath)
-            <div class="mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
-                <button wire:click="markCompleted"
-                    class="inline-flex items-center gap-2 px-5 py-2.5 bg-gradient-to-r from-primary-500 to-primary-700 text-white font-semibold rounded-xl text-sm hover:from-primary-600 hover:to-primary-800 transition-all">
-                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
-                    Demo: Videoyu Tamamla
-                </button>
-            </div>
+        @if(!$videoPath && !$isCompleted)
+            <button wire:click="markCompleted"
+                class="text-xs px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-300 rounded-lg hover:bg-gray-300 dark:hover:bg-gray-600 transition-colors font-medium">
+                Demo: Tamamla
+            </button>
         @endif
     </div>
+
 </div>
 
 @if($useHls)

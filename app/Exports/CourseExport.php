@@ -19,6 +19,7 @@ class CourseExport implements FromQuery, WithChunkReading, WithHeadings, WithMap
         private string $filterCategory = '',
         private string $filterStatus = '',
         private string $filterMandatory = '',
+        private array $selectedIds = [],
     ) {}
 
     public function query()
@@ -26,22 +27,29 @@ class CourseExport implements FromQuery, WithChunkReading, WithHeadings, WithMap
         return Course::query()
             ->with(['category', 'departments'])
             ->withCount(['questions', 'enrollments', 'enrollments as completed_enrollments_count' => fn ($q) => $q->where('status', 'completed')])
-            ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$this->search}%"))
-            ->when($this->filterCategory, fn ($q) => $q->where('category_id', $this->filterCategory))
-            ->when($this->filterStatus, fn ($q) => $q->where('status', $this->filterStatus))
-            ->when($this->filterMandatory !== '', function ($q) {
-                $q->where('is_mandatory', $this->filterMandatory === '1');
+            ->when(!empty($this->selectedIds), fn ($q) => $q->whereIn('id', $this->selectedIds))
+            ->when(empty($this->selectedIds), function ($q) {
+                $q->when($this->search, fn ($q2) => $q2->where('title', 'like', "%{$this->search}%"))
+                  ->when($this->filterCategory, fn ($q2) => $q2->where('category_id', $this->filterCategory))
+                  ->when($this->filterStatus, fn ($q2) => $q2->where('status', $this->filterStatus))
+                  ->when($this->filterMandatory !== '', function ($q2) {
+                      $q2->where('is_mandatory', $this->filterMandatory === '1');
+                  });
             })
             ->orderByDesc('created_at');
     }
 
     public function headings(): array
     {
-        return ['Eğitim Adı', 'Kategori', 'Durum', 'Zorunlu', 'Soru Sayısı', 'Kayıt Sayısı', 'Tamamlayan', 'Departmanlar', 'Başlangıç', 'Bitiş'];
+        return ['Eğitim Adı', 'Kategori', 'Durum', 'Zorunlu', 'Soru Sayısı', 'Kayıt Sayısı', 'Tamamlayan', 'Tamamlanma %', 'Süre (dk)', 'Departmanlar', 'Başlangıç', 'Bitiş', 'Son Güncelleme'];
     }
 
     public function map($course): array
     {
+        $completionPct = $course->enrollments_count > 0
+            ? round($course->completed_enrollments_count / $course->enrollments_count * 100)
+            : 0;
+
         return [
             $course->title,
             $course->category?->name ?? '—',
@@ -50,9 +58,12 @@ class CourseExport implements FromQuery, WithChunkReading, WithHeadings, WithMap
             $course->questions_count,
             $course->enrollments_count,
             $course->completed_enrollments_count,
+            '%' . $completionPct,
+            $course->exam_duration_minutes ?? '—',
             $course->departments->pluck('name')->join(', ') ?: '—',
             $course->start_date?->format('d.m.Y') ?? '—',
             $course->end_date?->format('d.m.Y') ?? '—',
+            $course->updated_at?->format('d.m.Y H:i') ?? '—',
         ];
     }
 

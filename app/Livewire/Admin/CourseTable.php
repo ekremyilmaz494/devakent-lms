@@ -5,8 +5,11 @@ namespace App\Livewire\Admin;
 use App\Exports\CourseExport;
 use App\Models\Category;
 use App\Models\Course;
+use App\Models\Department;
+use App\Models\Enrollment;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\DB;
 use Livewire\Component;
 use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
@@ -24,6 +27,9 @@ class CourseTable extends AdminComponent
     public string $sortField = 'created_at';
     public string $sortDirection = 'desc';
 
+    // View mode
+    public string $viewMode = 'table';
+
     // Bulk selection
     public array $selectedCourses = [];
     public bool $selectAll = false;
@@ -32,8 +38,10 @@ class CourseTable extends AdminComponent
     public bool $showDeleteModal = false;
     public bool $showDetailModal = false;
     public bool $showBulkDeleteModal = false;
+    public bool $showBulkAssignModal = false;
     public ?int $deletingId = null;
     public ?int $viewingId = null;
+    public ?int $bulkAssignDepartmentId = null;
 
     public function updatingSearch(): void
     {
@@ -55,7 +63,6 @@ class CourseTable extends AdminComponent
         $this->resetPage();
     }
 
-    // Tab butonları için özel method — wire:target ile hedeflenebilir
     public function filterByStatus(string $status): void
     {
         $this->filterStatus = $status;
@@ -63,7 +70,11 @@ class CourseTable extends AdminComponent
     }
 
     // ── Sorting ──
-    private array $allowedSortFields = ['title', 'created_at', 'questions_count', 'enrollments_count', 'status', 'category_id'];
+    private array $allowedSortFields = [
+        'title', 'created_at', 'updated_at', 'questions_count',
+        'enrollments_count', 'status', 'category_id', 'end_date',
+        'exam_duration_minutes',
+    ];
 
     public function sortBy(string $field): void
     {
@@ -82,6 +93,12 @@ class CourseTable extends AdminComponent
     public function placeholder(): string
     {
         return view('livewire.placeholders.skeleton')->render();
+    }
+
+    // ── View Mode ──
+    public function setViewMode(string $mode): void
+    {
+        $this->viewMode = in_array($mode, ['table', 'card']) ? $mode : 'table';
     }
 
     // ── Bulk Selection ──
@@ -103,6 +120,7 @@ class CourseTable extends AdminComponent
     {
         Course::whereIn('id', $this->selectedCourses)->update(['status' => 'published']);
         Cache::forget('admin.course_status_counts');
+        Cache::forget('admin.course_stats');
         session()->flash('success', __('lms.course_bulk_published', ['count' => count($this->selectedCourses)]));
         $this->selectedCourses = [];
         $this->selectAll = false;
@@ -112,6 +130,7 @@ class CourseTable extends AdminComponent
     {
         Course::whereIn('id', $this->selectedCourses)->update(['status' => 'draft']);
         Cache::forget('admin.course_status_counts');
+        Cache::forget('admin.course_stats');
         session()->flash('success', __('lms.course_bulk_drafted', ['count' => count($this->selectedCourses)]));
         $this->selectedCourses = [];
         $this->selectAll = false;
@@ -148,6 +167,33 @@ class CourseTable extends AdminComponent
         $this->selectedCourses = [];
         $this->selectAll = false;
         $this->showBulkDeleteModal = false;
+        Cache::forget('admin.course_status_counts');
+        Cache::forget('admin.course_stats');
+    }
+
+    // ── Bulk Assign Department ──
+    public function openBulkAssign(): void
+    {
+        $this->showBulkAssignModal = true;
+        $this->bulkAssignDepartmentId = null;
+    }
+
+    public function bulkAssignDepartment(): void
+    {
+        if (!$this->bulkAssignDepartmentId) {
+            return;
+        }
+
+        $courses = Course::whereIn('id', $this->selectedCourses)->get();
+        foreach ($courses as $course) {
+            $course->departments()->syncWithoutDetaching([$this->bulkAssignDepartmentId]);
+        }
+
+        session()->flash('success', count($this->selectedCourses) . ' eğitim departmana atandı.');
+        $this->selectedCourses = [];
+        $this->selectAll = false;
+        $this->showBulkAssignModal = false;
+        $this->bulkAssignDepartmentId = null;
     }
 
     // ── Detail Modal ──
@@ -160,30 +206,50 @@ class CourseTable extends AdminComponent
     // ── Export ──
     public function exportExcel()
     {
-        if ($this->getFilteredQuery()->doesntExist()) {
+        $query = !empty($this->selectedCourses)
+            ? Course::whereIn('id', $this->selectedCourses)
+            : $this->getFilteredQuery();
+
+        if ($query->doesntExist()) {
             session()->flash('warning', __('lms.no_export_data'));
             return;
         }
 
-        return Excel::download(
-            new CourseExport($this->search, $this->filterCategory, $this->filterStatus, $this->filterMandatory),
-            'egitimler_' . date('Y-m-d') . '.xlsx'
-        );
+        $selectedIds = !empty($this->selectedCourses) ? $this->selectedCourses : [];
+
+        return response()->streamDownload(function () use ($selectedIds) {
+            echo Excel::raw(
+                new CourseExport($this->search, $this->filterCategory, $this->filterStatus, $this->filterMandatory, $selectedIds),
+                \Maatwebsite\Excel\Excel::XLSX
+            );
+        }, 'egitimler_' . date('Y-m-d') . '.xlsx', [
+            'Content-Type' => 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+        ]);
     }
 
     public function exportPdf()
     {
-        $courses = $this->getFilteredQuery()
+        $query = !empty($this->selectedCourses)
+            ? Course::whereIn('id', $this->selectedCourses)
+            : $this->getFilteredQuery();
+
+        $courses = $query
             ->with(['category', 'departments'])
             ->withCount(['questions', 'enrollments', 'enrollments as completed_enrollments_count' => fn ($q) => $q->where('status', 'completed')])
             ->get();
+
+        if ($courses->isEmpty()) {
+            session()->flash('warning', __('lms.no_export_data'));
+            return;
+        }
 
         $pdf = Pdf::loadView('exports.courses-pdf', ['courses' => $courses])
             ->setPaper('a4', 'landscape');
 
         return response()->streamDownload(
             fn () => print($pdf->output()),
-            'egitimler_' . date('Y-m-d') . '.pdf'
+            'egitimler_' . date('Y-m-d') . '.pdf',
+            ['Content-Type' => 'application/pdf']
         );
     }
 
@@ -208,6 +274,7 @@ class CourseTable extends AdminComponent
         $course->departments()->detach();
         $course->delete();
         Cache::forget('admin.course_status_counts');
+        Cache::forget('admin.course_stats');
 
         session()->flash('success', __('lms.course_deleted_msg'));
         $this->showDeleteModal = false;
@@ -220,6 +287,7 @@ class CourseTable extends AdminComponent
         $newStatus = $course->status === 'published' ? 'draft' : 'published';
         $course->update(['status' => $newStatus]);
         Cache::forget('admin.course_status_counts');
+        Cache::forget('admin.course_stats');
         session()->flash('success', $newStatus === 'published' ? __('lms.course_published') : __('lms.course_drafted'));
     }
 
@@ -245,12 +313,10 @@ class CourseTable extends AdminComponent
             ->orderBy($this->sortField, $this->sortDirection)
             ->paginate(10);
 
-        // Kategoriler nadiren değişir — 10 dk cache
         $categories = Cache::remember('admin.course_categories', 600, fn () =>
             Category::orderBy('name')->get()
         );
 
-        // 3 ayrı COUNT yerine tek GROUP BY + 1 dk cache
         $statusCounts = Cache::remember('admin.course_status_counts', 60, fn () =>
             Course::selectRaw('status, COUNT(*) as cnt')->groupBy('status')->pluck('cnt', 'status')
         );
@@ -258,7 +324,24 @@ class CourseTable extends AdminComponent
         $publishedCount = $statusCounts->get('published', 0);
         $draftCount     = $statusCounts->get('draft', 0);
 
-        // Detail modal — sadece modal açıkken yükle
+        // Summary stats
+        $stats = Cache::remember('admin.course_stats', 60, function () {
+            $totalEnrollments = Enrollment::count();
+            $completedEnrollments = Enrollment::where('status', 'completed')->count();
+            $avgCompletion = $totalEnrollments > 0 ? round($completedEnrollments / $totalEnrollments * 100) : 0;
+            $expiredCount = Course::where('end_date', '<', now())
+                ->where('status', 'published')
+                ->count();
+
+            return compact('totalEnrollments', 'avgCompletion', 'expiredCount');
+        });
+
+        // Departments for bulk assign
+        $departments = Cache::remember('departments.all', now()->addHours(6),
+            fn () => Department::where('is_active', true)->orderBy('name')->get()
+        );
+
+        // Detail modal
         $viewingCourse = $this->showDetailModal && $this->viewingId
             ? Course::with(['category', 'creator', 'departments', 'enrollments.user', 'videos'])
                 ->withCount(['questions', 'enrollments', 'enrollments as completed_enrollments_count' => fn ($q) => $q->where('status', 'completed')])
@@ -266,7 +349,8 @@ class CourseTable extends AdminComponent
             : null;
 
         return view('livewire.admin.course-table', compact(
-            'courses', 'categories', 'totalCourses', 'publishedCount', 'draftCount', 'viewingCourse'
+            'courses', 'categories', 'totalCourses', 'publishedCount', 'draftCount',
+            'viewingCourse', 'stats', 'departments'
         ));
     }
 }
