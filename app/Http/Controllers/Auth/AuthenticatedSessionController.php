@@ -32,10 +32,10 @@ class AuthenticatedSessionController extends Controller
         $user->update(['last_login_at' => now()]);
 
         if ($user->hasRole('admin')) {
-            return redirect()->intended(route('admin.dashboard'));
+            return redirect()->intended(route('admin.dashboard.index'));
         }
 
-        return redirect()->intended(route('staff.dashboard'));
+        return redirect()->intended(route('staff.dashboard.index'));
     }
 
     /**

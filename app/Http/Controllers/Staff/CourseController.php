@@ -5,18 +5,22 @@ namespace App\Http\Controllers\Staff;
 use App\Http\Controllers\Controller;
 use App\Models\Course;
 use App\Models\Enrollment;
+use Illuminate\Http\Request;
 
 class CourseController extends Controller
 {
-    public function index()
+    public function index(Request $request)
     {
         $user = auth()->user();
+        $search = $request->get('search', '');
+
         $enrollments = $user->enrollments()
             ->with(['course.category', 'course.questions', 'certificate', 'examAttempts'])
+            ->when($search, fn ($q) => $q->whereHas('course', fn ($q2) => $q2->where('title', 'like', "%{$search}%")))
             ->latest()
             ->get();
 
-        return view('staff.courses.index', compact('enrollments'));
+        return view('staff.courses.index', compact('enrollments', 'search'));
     }
 
     public function show(Course $course)

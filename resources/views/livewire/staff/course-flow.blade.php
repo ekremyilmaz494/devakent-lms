@@ -1,7 +1,8 @@
 <div class="space-y-4 md:space-y-6">
     {{-- ═══ Course Header ═══ --}}
     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 overflow-hidden">
-        <div class="h-1.5 bg-gradient-to-r from-primary-500 via-primary-400 to-primary-600" style="background: linear-gradient(90deg, {{ $course->category?->color ?? '#D97706' }}, #F59E0B, {{ $course->category?->color ?? '#D97706' }})"></div>
+        @php $categoryColor = $course->category?->color ?? '#D97706'; @endphp
+        <div class="h-1.5" style="--cat-color: {{ $categoryColor }}; background: linear-gradient(90deg, var(--cat-color), #F59E0B, var(--cat-color))"></div>
         <div class="p-4 md:p-6">
             <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-3">
                 <div>
@@ -76,7 +77,7 @@
             </div>
 
             {{-- ─── Genel İlerleme Barı ─── --}}
-            @if($enrollment && !in_array($step, ['intro', 'completed', 'failed']))
+            @if($enrollment && !in_array($step, ['intro', 'completed', 'failed', 'survey']))
                 @php
                     $totalVideoCount = $course->videos->count();
                     $completedVideoCount = $enrollment->videoProgress->where('is_completed', true)->count();
@@ -104,7 +105,7 @@
     </div>
 
     {{-- ═══ Progress Stepper ═══ --}}
-    @if(!in_array($step, ['intro', 'completed', 'failed', 'pre_exam_warning', 'post_exam_warning']))
+    @if(!in_array($step, ['intro', 'completed', 'failed', 'survey', 'pre_exam_warning', 'post_exam_warning']))
     <div class="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-4 md:p-6">
         <div class="flex items-center justify-between max-w-xl w-full mx-auto">
             @foreach($progressSteps as $i => $ps)
@@ -571,5 +572,19 @@
                 Eğitimlerime Dön
             </a>
         </div>
+
+    @elseif($step === 'survey' && $enrollment)
+        {{-- Anket / Geri Bildirim --}}
+        <div class="mb-4 bg-emerald-50 dark:bg-emerald-900/10 border border-emerald-200 dark:border-emerald-800/40 rounded-xl px-4 py-3 flex items-center gap-3">
+            <div class="w-8 h-8 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center flex-shrink-0">
+                <svg class="w-5 h-5 text-emerald-600 dark:text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"/></svg>
+            </div>
+            <div>
+                <p class="text-sm font-semibold text-emerald-800 dark:text-emerald-300">Eğitimi başarıyla tamamladınız!</p>
+                <p class="text-xs text-emerald-600 dark:text-emerald-400">Son olarak birkaç dakikanızı ayırarak bu eğitimi değerlendirmenizi rica ediyoruz.</p>
+            </div>
+        </div>
+        <livewire:staff.course-survey :enrollmentId="$enrollment->id" :courseId="$courseId" :key="'survey-'.$enrollment->id" />
+
     @endif
 </div>

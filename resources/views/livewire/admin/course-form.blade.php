@@ -81,6 +81,79 @@
                         @error('end_date') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                     </div>
                 </div>
+
+                {{-- Thumbnail --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Kapak Görseli</label>
+                    <div x-data="{ uploading: false, uploaded: false }">
+                        <input type="file" accept="image/jpeg,image/png,image/webp"
+                            class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 cursor-pointer file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-primary-100 file:text-primary-700 file:cursor-pointer"
+                            x-on:change="
+                                if (!$event.target.files.length) return;
+                                uploading = true; uploaded = false;
+                                $wire.upload('thumbnailFile', $event.target.files[0],
+                                    () => { uploading = false; uploaded = true; },
+                                    () => { uploading = false; }
+                                );
+                            " />
+                        <div x-show="uploading" class="text-xs text-primary-600 mt-1 flex items-center gap-1">
+                            <svg class="animate-spin w-3 h-3" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                            Yükleniyor...
+                        </div>
+                    </div>
+                    @if($thumbnailPath)
+                        <div class="mt-2 flex items-center gap-3">
+                            <img src="{{ Storage::url($thumbnailPath) }}" class="w-20 h-12 object-cover rounded-lg border border-gray-200 dark:border-gray-700" />
+                            <button type="button" wire:click="$set('thumbnailPath', null)" class="text-xs text-red-500 hover:text-red-700">Kaldır</button>
+                        </div>
+                    @endif
+                    @error('thumbnailFile') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {{-- Eğitmen --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Eğitmen / Hazırlayan</label>
+                        <input wire:model="instructor" type="text" class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500" placeholder="Eğitmen adı veya birimi" />
+                    </div>
+                    {{-- Dil --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Dil</label>
+                        <select wire:model="language" class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="tr">Türkçe</option>
+                            <option value="en">İngilizce</option>
+                            <option value="de">Almanca</option>
+                            <option value="ar">Arapça</option>
+                        </select>
+                    </div>
+                </div>
+
+                {{-- Etiketler --}}
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Etiketler</label>
+                    <input wire:model="tagsInput" type="text" class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500" placeholder="örn: temel eğitim, sağlık, zorunlu (virgülle ayırın)" />
+                    <p class="text-xs text-gray-500 mt-1">Etiketleri virgülle ayırın</p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {{-- Ön Koşul Eğitim --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Ön Koşul Eğitim</label>
+                        <select wire:model="prerequisite_course_id" class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500">
+                            <option value="">Ön koşul yok</option>
+                            @foreach($allCourses as $c)
+                                <option value="{{ $c->id }}">{{ $c->title }}</option>
+                            @endforeach
+                        </select>
+                        <p class="text-xs text-gray-500 mt-1">Seçilen eğitim tamamlanmadan bu eğitime erişilemez</p>
+                    </div>
+                    {{-- Tekrar Periyodu --}}
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tekrar Periyodu (ay)</label>
+                        <input wire:model="repeat_period_months" type="number" min="1" max="120" class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500" placeholder="örn: 12 (yıllık)" />
+                        <p class="text-xs text-gray-500 mt-1">Boş bırakırsanız tekrar gerekmez</p>
+                    </div>
+                </div>
             </div>
             </div>
         </div>
@@ -141,6 +214,19 @@
                                 @error("videos.{$index}.title") <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                             </div>
 
+                            {{-- Video Açıklaması --}}
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">Bölüm Açıklaması <span class="text-gray-400">(opsiyonel)</span></label>
+                                <input wire:model="videos.{{ $index }}.description" type="text" placeholder="Kısa bölüm açıklaması" class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500" />
+                            </div>
+
+                            {{-- YouTube / Vimeo URL --}}
+                            <div>
+                                <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">YouTube / Vimeo URL <span class="text-gray-400">(dosya yerine)</span></label>
+                                <input wire:model="videos.{{ $index }}.url" type="url" placeholder="https://youtube.com/watch?v=... veya https://vimeo.com/..." class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500" />
+                                <p class="text-xs text-gray-400 mt-0.5">URL girilirse dosya yüklemeye gerek yok</p>
+                            </div>
+
                             {{-- Mevcut Video Göstergesi --}}
                             @if(!empty($video['existing_path']))
                                 <div class="flex items-center gap-2 p-2 bg-green-50 dark:bg-green-900/20 rounded-lg">
@@ -154,11 +240,27 @@
                                 <label class="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
                                     {{ !empty($video['existing_path']) ? __('lms.video_upload_new') : __('lms.video_upload_req') }}
                                 </label>
-                                <input wire:model="videoFiles.{{ $index }}" type="file" accept="video/mp4,video/avi,video/quicktime,video/x-ms-wmv"
-                                    class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-primary-100 file:text-primary-700 file:cursor-pointer dark:file:bg-primary-900/40 dark:file:text-primary-300" />
-                                <div wire:loading wire:target="videoFiles.{{ $index }}" class="flex items-center gap-2 mt-1.5 text-xs text-primary-600 dark:text-primary-400">
-                                    <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
-                                    {{ __('lms.video_uploading') }}
+                                <div x-data="{ uploading: false, uploaded: false, error: '' }">
+                                    <input type="file" accept="video/mp4,video/avi,video/quicktime,video/x-ms-wmv"
+                                        class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 cursor-pointer file:mr-4 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-primary-100 file:text-primary-700 file:cursor-pointer dark:file:bg-primary-900/40 dark:file:text-primary-300"
+                                        x-on:change="
+                                            if (!$event.target.files.length) return;
+                                            uploading = true; uploaded = false; error = '';
+                                            $wire.upload('videoFiles.{{ $index }}', $event.target.files[0],
+                                                () => { uploading = false; uploaded = true; },
+                                                (err) => { uploading = false; error = '{{ __('lms.val_video_upload') }}'; },
+                                                () => {}
+                                            );
+                                        " />
+                                    <div x-show="uploading" class="flex items-center gap-2 mt-1.5 text-xs text-primary-600 dark:text-primary-400">
+                                        <svg class="animate-spin w-3.5 h-3.5" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                                        {{ __('lms.video_uploading') }}
+                                    </div>
+                                    <div x-show="uploaded" class="flex items-center gap-2 mt-1.5 text-xs text-green-600 dark:text-green-400">
+                                        <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
+                                        Yüklendi
+                                    </div>
+                                    <div x-show="error" x-text="error" class="text-red-500 text-xs mt-1"></div>
                                 </div>
                                 @error("videoFiles.{$index}") <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                             </div>
@@ -193,6 +295,19 @@
                     <input wire:model="max_attempts" type="number" min="1" max="10" class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500" />
                 </div>
             </div>
+
+            <div class="mt-4 flex flex-wrap gap-5">
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input wire:model="shuffle_questions" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                    <span class="text-sm text-gray-700 dark:text-gray-300">Soruları Karıştır</span>
+                    <span class="text-xs text-gray-400">(soru ve şık sırası rastgele)</span>
+                </label>
+                <label class="flex items-center gap-2 cursor-pointer">
+                    <input wire:model="exam_required" type="checkbox" class="rounded border-gray-300 text-primary-600 focus:ring-primary-500" />
+                    <span class="text-sm text-gray-700 dark:text-gray-300">Sınav Zorunlu</span>
+                    <span class="text-xs text-gray-400">(sınavsız tamamlanamaz)</span>
+                </label>
+            </div>
             </div>
         </div>
 
@@ -210,12 +325,12 @@
                         </p>
                     </div>
                     <div class="flex items-center gap-2" id="personnel-quick-actions">
-                        <button type="button" onclick="personnelSelectAll()"
+                        <button type="button" @click="personnelSelectAll()"
                             class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
                             Tümünü Seç
                         </button>
-                        <button type="button" onclick="personnelClearAll()"
+                        <button type="button" @click="personnelClearAll()"
                             class="inline-flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-red-600 dark:text-red-400 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 rounded-lg hover:bg-red-100 dark:hover:bg-red-900/30 transition-colors">
                             <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                             Tümünü Kaldır
@@ -232,7 +347,7 @@
                         <div class="p-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-700/20">
                             <div class="relative">
                                 <svg class="absolute left-2.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/></svg>
-                                <input type="text" id="dept-search" oninput="personnelSearch(this.value)" placeholder="Departman veya personel ara..."
+                                <input type="text" id="dept-search" @input="personnelSearch($event.target.value)" placeholder="Departman veya personel ara..."
                                     class="w-full pl-9 pr-3 py-2 text-xs border border-gray-200 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:ring-primary-500 focus:border-primary-500">
                             </div>
                         </div>
@@ -265,13 +380,13 @@
                                                 $el.querySelector('input').checked = ids.length > 0 && selCnt === ids.length;
                                              ">
                                             <input type="checkbox"
-                                                   onclick="personnelToggleDept({{ json_encode($deptUserIds) }}, this)"
+                                                   @click="personnelToggleDept({{ json_encode($deptUserIds) }}, $event.target)"
                                                    class="rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500 cursor-pointer flex-shrink-0">
                                         </div>
 
                                         {{-- Toggle accordion --}}
                                         <button type="button"
-                                                onclick="personnelToggleDeptOpen({{ $dept->id }})"
+                                                @click="personnelToggleDeptOpen({{ $dept->id }})"
                                                 class="flex-1 flex items-center justify-between text-left gap-2 min-w-0">
                                             <div class="flex items-center gap-2 min-w-0">
                                                 <span class="w-2.5 h-2.5 rounded-full flex-shrink-0" style="background-color: {{ $deptColor }};"></span>
@@ -295,7 +410,7 @@
                                                  data-user-id="{{ $user->id }}"
                                                  data-user-name="{{ strtolower($user->first_name . ' ' . $user->last_name) }}"
                                                  data-dept="{{ $dept->id }}"
-                                                 onclick="personnelToggleUser({{ $user->id }}, {{ $dept->id }})">
+                                                 @click="personnelToggleUser({{ $user->id }}, {{ $dept->id }})">
                                                 <input type="checkbox"
                                                        class="user-checkbox rounded border-gray-300 dark:border-gray-600 text-primary-600 focus:ring-primary-500 pointer-events-none flex-shrink-0"
                                                        data-user="{{ $user->id }}"
@@ -333,7 +448,7 @@
                             <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
                                 Atananlar (<span id="selected-count">{{ count($selectedPersonnel) }}</span>)
                             </span>
-                            <button type="button" onclick="personnelClearAll()"
+                            <button type="button" @click="personnelClearAll()"
                                     id="clear-all-btn"
                                     style="{{ count($selectedPersonnel) === 0 ? 'display:none' : '' }}"
                                     class="text-xs text-red-500 hover:text-red-700 dark:hover:text-red-400 transition-colors">
@@ -375,7 +490,7 @@
                                                         <p class="text-[10px] text-gray-400 dark:text-gray-500 truncate">{{ $dept->name }}</p>
                                                     </div>
                                                     <button type="button"
-                                                            onclick="personnelToggleUser({{ $user->id }}, {{ $dept->id }})"
+                                                            @click="personnelToggleUser({{ $user->id }}, {{ $dept->id }})"
                                                             class="w-5 h-5 flex items-center justify-center rounded text-gray-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex-shrink-0">
                                                         <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
                                                     </button>
@@ -405,10 +520,45 @@
                     <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ __('lms.questions_section') }}</h3>
                     <p class="text-sm text-gray-600 dark:text-gray-400">{{ __('lms.questions_count', ['count' => count($questions)]) }}</p>
                 </div>
-                <button type="button" wire:click="addQuestion" class="inline-flex items-center px-3 py-1.5 text-sm font-medium text-primary-600 border border-primary-300 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
-                    <svg class="w-4 h-4 mr-1" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
-                    {{ __('lms.add_question') }}
-                </button>
+                {{-- Soru tipi seçerek ekleme --}}
+                <div x-data="{ open: false }" class="relative">
+                    <button type="button" @click="open = !open" class="inline-flex items-center gap-1.5 px-3 py-1.5 text-sm font-medium text-primary-600 border border-primary-300 rounded-lg hover:bg-primary-50 dark:hover:bg-primary-900/20 transition-colors">
+                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4" /></svg>
+                        {{ __('lms.add_question') }}
+                        <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                    </button>
+                    <div x-show="open" @click.outside="open = false" x-cloak
+                         class="absolute right-0 mt-1 w-52 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl shadow-lg z-10 py-1.5 overflow-hidden">
+                        <button type="button" wire:click="addQuestion('multiple_choice')" @click="open = false"
+                            class="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                            <span class="w-7 h-7 rounded-lg bg-primary-100 dark:bg-primary-900/30 flex items-center justify-center text-primary-600 dark:text-primary-400 font-bold text-xs">A–D</span>
+                            <div class="text-left">
+                                <p class="font-medium">Çoktan Seçmeli</p>
+                                <p class="text-[11px] text-gray-400">4 şık, 1 doğru cevap</p>
+                            </div>
+                        </button>
+                        <button type="button" wire:click="addQuestion('true_false')" @click="open = false"
+                            class="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                            <span class="w-7 h-7 rounded-lg bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
+                            </span>
+                            <div class="text-left">
+                                <p class="font-medium">Doğru / Yanlış</p>
+                                <p class="text-[11px] text-gray-400">İki seçenekli otonom değerlendirme</p>
+                            </div>
+                        </button>
+                        <button type="button" wire:click="addQuestion('open_ended')" @click="open = false"
+                            class="w-full flex items-center gap-2.5 px-3.5 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 transition-colors">
+                            <span class="w-7 h-7 rounded-lg bg-amber-100 dark:bg-amber-900/30 flex items-center justify-center text-amber-600 dark:text-amber-400">
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+                            </span>
+                            <div class="text-left">
+                                <p class="font-medium">Açık Uçlu</p>
+                                <p class="text-[11px] text-gray-400">Metin cevabı, eğitmen değerlendirir</p>
+                            </div>
+                        </button>
+                    </div>
+                </div>
             </div>
 
             @if(count($questions) === 0)
@@ -421,9 +571,20 @@
 
             <div class="space-y-4">
                 @foreach($questions as $index => $question)
+                @php $qType = $question['question_type'] ?? 'multiple_choice'; @endphp
                     <div class="border border-gray-200 dark:border-gray-700 rounded-lg p-4" wire:key="question-{{ $index }}">
                         <div class="flex items-center justify-between mb-3">
-                            <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ __('lms.question_label', ['num' => $index + 1]) }}</h4>
+                            <div class="flex items-center gap-2">
+                                <h4 class="text-sm font-semibold text-gray-700 dark:text-gray-300">{{ __('lms.question_label', ['num' => $index + 1]) }}</h4>
+                                {{-- Tip rozeti --}}
+                                @if($qType === 'multiple_choice')
+                                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">Çoktan Seçmeli</span>
+                                @elseif($qType === 'true_false')
+                                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-600 dark:text-emerald-400">Doğru/Yanlış</span>
+                                @else
+                                    <span class="text-[10px] font-semibold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400">Açık Uçlu</span>
+                                @endif
+                            </div>
                             <div class="flex items-center gap-1">
                                 @if($index > 0)
                                     <button type="button" wire:click="moveQuestionUp({{ $index }})" class="p-1 text-gray-400 hover:text-gray-600 rounded" title="{{ __('lms.move_up') }}">
@@ -447,18 +608,43 @@
                             @error("questions.{$index}.question_text") <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
                         </div>
 
-                        {{-- Options --}}
+                        {{-- Çoktan Seçmeli --}}
+                        @if($qType === 'multiple_choice')
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
                             @foreach(['a' => 'A', 'b' => 'B', 'c' => 'C', 'd' => 'D'] as $key => $label)
                                 <div class="flex items-center gap-2">
                                     <label class="flex items-center gap-1.5 flex-shrink-0 cursor-pointer">
                                         <input wire:model="questions.{{ $index }}.correct_option" type="radio" value="{{ $key }}" name="correct_{{ $index }}" class="text-green-600 focus:ring-green-500" />
-                                        <span class="text-xs font-bold w-5 h-5 flex items-center justify-center rounded {{ $questions[$index]['correct_option'] === $key ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">{{ $label }}</span>
+                                        <span class="text-xs font-bold w-5 h-5 flex items-center justify-center rounded {{ ($questions[$index]['correct_option'] ?? 'a') === $key ? 'bg-green-100 text-green-700' : 'bg-gray-100 text-gray-500' }}">{{ $label }}</span>
                                     </label>
                                     <input wire:model="questions.{{ $index }}.option_{{ $key }}" type="text" placeholder="{{ __('lms.option_ph', ['letter' => $label]) }}" class="flex-1 border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-1.5 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 focus:ring-primary-500 focus:border-primary-500" />
                                 </div>
                             @endforeach
                         </div>
+
+                        {{-- Doğru / Yanlış --}}
+                        @elseif($qType === 'true_false')
+                        <div class="flex items-center gap-3">
+                            <p class="text-xs text-gray-500 dark:text-gray-400 flex-shrink-0">Doğru cevap:</p>
+                            <label class="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-lg border {{ ($questions[$index]['correct_option'] ?? 'a') === 'a' ? 'border-emerald-400 bg-emerald-50 dark:bg-emerald-900/20' : 'border-gray-200 dark:border-gray-600' }} transition-colors">
+                                <input wire:model="questions.{{ $index }}.correct_option" type="radio" value="a" name="correct_{{ $index }}" class="text-emerald-600 focus:ring-emerald-500" />
+                                <span class="text-sm font-medium {{ ($questions[$index]['correct_option'] ?? 'a') === 'a' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-600 dark:text-gray-400' }}">Doğru</span>
+                            </label>
+                            <label class="flex items-center gap-2 cursor-pointer px-3 py-1.5 rounded-lg border {{ ($questions[$index]['correct_option'] ?? 'a') === 'b' ? 'border-red-400 bg-red-50 dark:bg-red-900/20' : 'border-gray-200 dark:border-gray-600' }} transition-colors">
+                                <input wire:model="questions.{{ $index }}.correct_option" type="radio" value="b" name="correct_{{ $index }}" class="text-red-600 focus:ring-red-500" />
+                                <span class="text-sm font-medium {{ ($questions[$index]['correct_option'] ?? 'a') === 'b' ? 'text-red-700 dark:text-red-300' : 'text-gray-600 dark:text-gray-400' }}">Yanlış</span>
+                            </label>
+                        </div>
+
+                        {{-- Açık Uçlu --}}
+                        @else
+                        <div class="p-3 bg-amber-50 dark:bg-amber-900/10 border border-amber-200 dark:border-amber-800/40 rounded-lg">
+                            <p class="text-xs text-amber-700 dark:text-amber-400 flex items-center gap-1.5">
+                                <svg class="w-4 h-4 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                                Personel bu soruya metin olarak cevap verir. Puana dahil edilmez; eğitmen tarafından değerlendirilmelidir.
+                            </p>
+                        </div>
+                        @endif
                     </div>
                 @endforeach
             </div>
@@ -471,7 +657,7 @@
                 {{ __('lms.cancel') }}
             </a>
             <div class="flex gap-3">
-                <button type="submit" class="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" wire:loading.attr="disabled" wire:target="save">
+                <button type="submit" class="inline-flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors shadow-sm disabled:opacity-50 disabled:cursor-not-allowed" wire:loading.attr="disabled" wire:target="save,videoFiles">
                     <span wire:loading.remove wire:target="save">
                         <svg class="w-4 h-4 inline -mt-0.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7" /></svg>
                         {{ $courseId ? __('lms.save') : __('lms.save') }}

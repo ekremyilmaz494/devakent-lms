@@ -109,17 +109,18 @@ class ExamService
 
     private function generateCertificate(Enrollment $enrollment, float $score): Certificate
     {
-        // Mükerrerlik kontrolü: aynı user+course için sertifika varsa onu döndür
+        // Pessimistic lock ile mükerrerlik kontrolü — eşzamanlı isteklerde race condition önler
         $existing = Certificate::where('user_id', $enrollment->user_id)
             ->where('course_id', $enrollment->course_id)
+            ->lockForUpdate()
             ->first();
 
         if ($existing) {
             return $existing;
         }
 
-        // Sıralı numara üret (enrollment_id yerine global sıra)
-        $lastId = (int) Certificate::lockForUpdate()->max('id');
+        // Sıralı numara üret
+        $lastId = (int) Certificate::max('id');
         $certNumber = 'DVK-' . date('Y') . '-' . str_pad($lastId + 1, 5, '0', STR_PAD_LEFT);
 
         $certificate = Certificate::create([
@@ -152,28 +153,38 @@ class ExamService
         ]);
     }
 
-    public function saveAnswer(ExamAttempt $attempt, int $questionId, string $selectedOption): ExamAnswer
+    public function saveAnswer(ExamAttempt $attempt, int $questionId, string $answer): ExamAnswer
     {
         $question = $attempt->enrollment->course->questions()->findOrFail($questionId);
-        $isCorrect = $question->correct_option === $selectedOption;
+
+        if ($question->isOpenEnded()) {
+            // Açık uçlu: metin cevabı kaydet, otomatik puanlanamaz
+            return ExamAnswer::updateOrCreate(
+                ['exam_attempt_id' => $attempt->id, 'question_id' => $questionId],
+                ['text_answer' => $answer, 'selected_option' => null, 'is_correct' => null, 'answered_at' => now()]
+            );
+        }
+
+        // Çoktan seçmeli ve Doğru/Yanlış: seçenek karşılaştır
+        $isCorrect = $question->correct_option === $answer;
 
         return ExamAnswer::updateOrCreate(
-            [
-                'exam_attempt_id' => $attempt->id,
-                'question_id' => $questionId,
-            ],
-            [
-                'selected_option' => $selectedOption,
-                'is_correct' => $isCorrect,
-                'answered_at' => now(),
-            ]
+            ['exam_attempt_id' => $attempt->id, 'question_id' => $questionId],
+            ['selected_option' => $answer, 'text_answer' => null, 'is_correct' => $isCorrect, 'answered_at' => now()]
         );
     }
 
     public function finishAttempt(ExamAttempt $attempt): ExamAttempt
     {
+        // Yalnızca otomatik puanlanabilen soruları say (MCQ + T/F)
+        $autoGradedTotal = $attempt->enrollment->course->questions()
+            ->whereIn('question_type', ['multiple_choice', 'true_false'])
+            ->count();
+
         $correctCount = $attempt->answers()->where('is_correct', true)->count();
-        $score = $correctCount * 10; // Her doğru cevap 10 puan (10 soru × 10 puan = 100)
+
+        // Puan = (doğru / otomatik toplam) * 100; eğer otomatik soru yoksa 0
+        $score = $autoGradedTotal > 0 ? (int) round(($correctCount / $autoGradedTotal) * 100) : 0;
 
         $attempt->update([
             'correct_answers' => $correctCount,

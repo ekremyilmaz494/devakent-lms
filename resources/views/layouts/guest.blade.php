@@ -12,10 +12,11 @@
     <title>Giris - {{ config('app.name', 'Devakent LMS') }}</title>
     <link rel="icon" href="{{ asset('images/favicon.ico') }}" type="image/x-icon">
 
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=oxanium:300,400,500,600,700|merriweather:400,700|fira-code:400,500&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.bunny.net/css?family=oxanium:300,400,500,600,700|merriweather:400,700|fira-code:400,500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.bunny.net/css?family=oxanium:300,400,500,600,700|merriweather:400,700|fira-code:400,500&display=swap" rel="stylesheet"></noscript>
 
-    @vite(['resources/css/app.css', 'resources/js/app.js'])
+    @vite(['resources/css/app.css', 'resources/css/login.css', 'resources/js/app.js'])
     {{-- Guest layout has no Livewire, so we start Alpine manually after app.js loads --}}
     <script>
         document.addEventListener('DOMContentLoaded', function () {

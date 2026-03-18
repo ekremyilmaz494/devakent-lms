@@ -7,6 +7,7 @@ use App\Models\Department;
 use App\Models\User;
 use Illuminate\Http\Request;
 use Illuminate\Validation\Rule;
+use Illuminate\Validation\Rules\Password;
 
 class StaffController extends Controller
 {
@@ -45,7 +46,7 @@ class StaffController extends Controller
             'first_name'          => 'required|string|max:100',
             'last_name'           => 'required|string|max:100',
             'email'               => 'required|email|max:255|unique:users,email',
-            'password'            => 'required|string|min:6',
+            'password'            => ['required', 'confirmed', Password::min(8)->mixedCase()->numbers()],
             'phone'               => 'nullable|string|max:20',
             'registration_number' => 'nullable|string|max:50|unique:users,registration_number',
             'title'               => 'nullable|string|max:100',
@@ -58,7 +59,7 @@ class StaffController extends Controller
             'email.required'               => 'E-posta alanı zorunludur.',
             'email.unique'                 => 'Bu e-posta adresi zaten kullanılıyor.',
             'password.required'            => 'Şifre alanı zorunludur.',
-            'password.min'                 => 'Şifre en az 6 karakter olmalıdır.',
+            'password.min'                 => 'Şifre en az 8 karakter, büyük/küçük harf ve rakam içermelidir.',
             'registration_number.unique'   => 'Bu sicil numarası zaten kullanılıyor.',
             'department_id.required'       => 'Departman seçimi zorunludur.',
         ]);

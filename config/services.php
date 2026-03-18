@@ -39,6 +39,7 @@ return [
         'enabled' => env('HR_ENABLED', false),
         'base_url' => env('HR_API_URL', ''),
         'api_token' => env('HR_API_TOKEN', ''),
+        'default_password' => env('HR_DEFAULT_PASSWORD'),
     ],
 
     'ffmpeg' => [

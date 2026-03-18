@@ -6,7 +6,7 @@ use App\Http\Controllers\Api\StatsApiController;
 use Illuminate\Support\Facades\Route;
 
 // ── Public (Kimlik doğrulamasız) ──
-Route::post('/login', [AuthController::class, 'login']);
+Route::middleware('throttle:5,1')->post('/login', [AuthController::class, 'login']);
 
 // ── Authenticated (Sanctum) — yalnızca staff rolü ──
 Route::middleware(['auth:sanctum', 'staff'])->group(function () {

@@ -2,6 +2,7 @@
 
 namespace App\Livewire\Admin;
 
+use App\Imports\CourseEnrollmentImport;
 use App\Models\Course;
 use App\Models\Department;
 use App\Models\Enrollment;
@@ -10,14 +11,20 @@ use App\Notifications\CourseAssignedNotification;
 use Illuminate\Support\Facades\DB;
 use Livewire\Attributes\Computed;
 use Livewire\Component;
+use Livewire\WithFileUploads;
+use Maatwebsite\Excel\Facades\Excel;
 
 class CourseEnrollment extends AdminComponent
 {
+    use WithFileUploads;
+
     public int $courseId;
     public string $search = '';
     public string $filterDepartment = '';
     public array $selectedUsers = [];
     public bool $showModal = false;
+    public bool $showCsvModal = false;
+    public $csvFile = null;
 
     public function mount(int $courseId): void
     {
@@ -128,6 +135,48 @@ class CourseEnrollment extends AdminComponent
         });
 
         session()->flash('success', __('lms.enrollment_added', ['count' => $enrolled]));
+    }
+
+    public function importCsv(): void
+    {
+        $this->validate([
+            'csvFile' => 'required|file|mimes:csv,xlsx,xls|max:5120',
+        ], [
+            'csvFile.required' => 'Lütfen bir dosya seçin.',
+            'csvFile.mimes'    => 'Desteklenen formatlar: CSV, XLSX, XLS.',
+            'csvFile.max'      => 'Dosya boyutu en fazla 5MB olabilir.',
+        ]);
+
+        $course = Course::findOrFail($this->courseId);
+
+        if ($course->status !== 'published') {
+            session()->flash('error', __('lms.course_not_published'));
+            $this->showCsvModal = false;
+            return;
+        }
+
+        $import = new CourseEnrollmentImport($course);
+
+        try {
+            DB::transaction(function () use ($import) {
+                Excel::import($import, $this->csvFile->getRealPath());
+            });
+        } catch (\Exception $e) {
+            $this->addError('csvFile', 'İçe aktarma sırasında hata oluştu: ' . $e->getMessage());
+            return;
+        }
+
+        $msg = "{$import->enrolled} personel kayıt edildi.";
+        if ($import->skipped > 0) {
+            $msg .= " {$import->skipped} atlandı.";
+        }
+        if (!empty($import->errors)) {
+            $msg .= ' Hatalar: ' . implode(' | ', array_slice($import->errors, 0, 3));
+        }
+
+        session()->flash('success', $msg);
+        $this->csvFile = null;
+        $this->showCsvModal = false;
     }
 
     public function removeEnrollment(int $enrollmentId): void

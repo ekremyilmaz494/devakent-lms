@@ -154,9 +154,14 @@ class HrIntegrationService
             $user->update($userData);
             $result['updated']++;
         } else {
+            $defaultPassword = config('services.hr.default_password');
+            if (empty($defaultPassword)) {
+                throw new \RuntimeException('HR_DEFAULT_PASSWORD is not configured. Cannot create user without a password.');
+            }
+
             $user = User::create(array_merge($userData, [
                 'email' => $email,
-                'password' => bcrypt('devakent2024!'),
+                'password' => bcrypt($defaultPassword),
             ]));
             $user->assignRole('staff');
             $result['created']++;

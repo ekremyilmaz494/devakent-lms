@@ -50,7 +50,7 @@
                 @endif
             </button>
 
-            <div x-show="notifOpen" @click.away="notifOpen = false" x-cloak
+            <div x-show="notifOpen" @click.outside="notifOpen = false" x-cloak
                  x-transition:enter="transition ease-out duration-200"
                  x-transition:enter-start="opacity-0 scale-95 -translate-y-1"
                  x-transition:enter-end="opacity-100 scale-100 translate-y-0"
@@ -120,7 +120,7 @@
                 <span class="hidden sm:inline">{{ strtoupper(app()->getLocale()) }}</span>
                 <svg class="hidden sm:block w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
             </button>
-            <div x-show="langOpen" @click.away="langOpen = false" x-cloak
+            <div x-show="langOpen" @click.outside="langOpen = false" x-cloak
                  x-transition:enter="transition ease-out duration-150"
                  x-transition:enter-start="opacity-0 scale-95"
                  x-transition:enter-end="opacity-100 scale-100"

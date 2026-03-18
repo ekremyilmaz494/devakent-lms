@@ -7,9 +7,7 @@ use App\Models\User;
 use App\Models\UserBadge;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Livewire\Component;
-
-class Leaderboard extends Component
+class Leaderboard extends StaffComponent
 {
     public string $period = 'all'; // all, month, week
 

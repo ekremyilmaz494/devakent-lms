@@ -66,27 +66,64 @@
                 {{-- Question Text --}}
                 <h3 class="text-base md:text-lg font-semibold text-gray-800 dark:text-white mb-4 md:mb-6 leading-relaxed">{{ $currentQuestion['question_text'] }}</h3>
 
-                {{-- Options --}}
-                <div class="space-y-2 md:space-y-3">
-                    @foreach(['a' => 'option_a', 'b' => 'option_b', 'c' => 'option_c', 'd' => 'option_d'] as $key => $field)
+                {{-- Options — soru tipine göre --}}
+                @if($currentQuestion['question_type'] === 'multiple_choice')
+                    <div class="space-y-2 md:space-y-3">
+                        @foreach(['a' => 'option_a', 'b' => 'option_b', 'c' => 'option_c', 'd' => 'option_d'] as $key => $field)
+                            @if(!empty($currentQuestion[$field]))
+                            @php $isSelected = isset($answers[$currentQuestion['id']]) && $answers[$currentQuestion['id']] === $key; @endphp
+                            <button wire:click="selectAnswer('{{ $key }}')"
+                                class="w-full flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl border-2 text-left transition-all duration-200
+                                {{ $isSelected ? 'border-primary-500 bg-primary-100 dark:bg-primary-900/30 dark:border-primary-400' : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50' }}">
+                                <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-xs md:text-sm font-bold transition-colors
+                                    {{ $isSelected ? 'bg-primary-500 text-white' : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400' }}">
+                                    {{ strtoupper($key) }}
+                                </div>
+                                <span class="text-sm md:text-[15px] {{ $isSelected ? 'text-primary-700 dark:text-primary-300 font-medium' : 'text-gray-700 dark:text-gray-300' }}">{{ $currentQuestion[$field] }}</span>
+                            </button>
+                            @endif
+                        @endforeach
+                    </div>
+
+                @elseif($currentQuestion['question_type'] === 'true_false')
+                    <div class="grid grid-cols-2 gap-3">
                         @php
-                            $isSelected = isset($answers[$currentQuestion['id']]) && $answers[$currentQuestion['id']] === $key;
+                            $tfSelected = $answers[$currentQuestion['id']] ?? null;
                         @endphp
-                        <button wire:click="selectAnswer('{{ $key }}')"
-                            class="w-full flex items-center gap-3 md:gap-4 p-3 md:p-4 rounded-xl border-2 text-left transition-all duration-200
-                            {{ $isSelected
-                                ? 'border-primary-500 bg-primary-100 dark:bg-primary-900/30 dark:border-primary-400'
-                                : 'border-gray-200 dark:border-gray-700 hover:border-gray-300 dark:hover:border-gray-600 hover:bg-gray-50 dark:hover:bg-gray-700/50' }}">
-                            <div class="w-8 h-8 md:w-9 md:h-9 rounded-lg flex items-center justify-center flex-shrink-0 text-xs md:text-sm font-bold transition-colors
-                                {{ $isSelected
-                                    ? 'bg-primary-500 text-white'
-                                    : 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400' }}">
-                                {{ strtoupper($key) }}
+                        <button wire:click="selectAnswer('a')"
+                            class="flex flex-col items-center justify-center gap-2 p-4 md:p-6 rounded-xl border-2 transition-all duration-200
+                            {{ $tfSelected === 'a' ? 'border-emerald-500 bg-emerald-50 dark:bg-emerald-900/20 dark:border-emerald-400' : 'border-gray-200 dark:border-gray-700 hover:border-emerald-300 dark:hover:border-emerald-700 hover:bg-emerald-50/50 dark:hover:bg-emerald-900/10' }}">
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center {{ $tfSelected === 'a' ? 'bg-emerald-500' : 'bg-gray-100 dark:bg-gray-700' }}">
+                                <svg class="w-6 h-6 {{ $tfSelected === 'a' ? 'text-white' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>
                             </div>
-                            <span class="text-sm md:text-[15px] {{ $isSelected ? 'text-primary-700 dark:text-primary-300 font-medium' : 'text-gray-700 dark:text-gray-300' }}">{{ $currentQuestion[$field] }}</span>
+                            <span class="font-bold text-sm md:text-base {{ $tfSelected === 'a' ? 'text-emerald-700 dark:text-emerald-300' : 'text-gray-600 dark:text-gray-400' }}">Doğru</span>
                         </button>
-                    @endforeach
-                </div>
+                        <button wire:click="selectAnswer('b')"
+                            class="flex flex-col items-center justify-center gap-2 p-4 md:p-6 rounded-xl border-2 transition-all duration-200
+                            {{ $tfSelected === 'b' ? 'border-red-500 bg-red-50 dark:bg-red-900/20 dark:border-red-400' : 'border-gray-200 dark:border-gray-700 hover:border-red-300 dark:hover:border-red-700 hover:bg-red-50/50 dark:hover:bg-red-900/10' }}">
+                            <div class="w-10 h-10 rounded-full flex items-center justify-center {{ $tfSelected === 'b' ? 'bg-red-500' : 'bg-gray-100 dark:bg-gray-700' }}">
+                                <svg class="w-6 h-6 {{ $tfSelected === 'b' ? 'text-white' : 'text-gray-400 dark:text-gray-500' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M6 18L18 6M6 6l12 12"/></svg>
+                            </div>
+                            <span class="font-bold text-sm md:text-base {{ $tfSelected === 'b' ? 'text-red-700 dark:text-red-300' : 'text-gray-600 dark:text-gray-400' }}">Yanlış</span>
+                        </button>
+                    </div>
+
+                @elseif($currentQuestion['question_type'] === 'open_ended')
+                    @php $currentText = $answers[$currentQuestion['id']] ?? ''; @endphp
+                    <div x-data="{ text: @js($currentText) }" class="space-y-2">
+                        <textarea
+                            x-model="text"
+                            @blur="$wire.saveTextAnswer(text)"
+                            rows="5"
+                            placeholder="Cevabınızı buraya yazınız..."
+                            class="w-full px-4 py-3 text-sm text-gray-700 dark:text-gray-300 bg-gray-50 dark:bg-gray-700/50 border border-gray-200 dark:border-gray-600 rounded-xl focus:ring-2 focus:ring-primary-400 focus:border-primary-400 dark:focus:ring-primary-500 dark:focus:border-primary-500 resize-none transition-colors placeholder-gray-400 dark:placeholder-gray-500"
+                        ></textarea>
+                        <p class="text-[11px] text-gray-400 dark:text-gray-500 flex items-center gap-1.5">
+                            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                            Açık uçlu sorular eğitmen tarafından değerlendirilir. Alandan ayrıldığınızda otomatik kaydedilir.
+                        </p>
+                    </div>
+                @endif
 
                 {{-- Navigation --}}
                 <div class="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 mt-4 md:mt-6 pt-4 border-t border-gray-200 dark:border-gray-700">

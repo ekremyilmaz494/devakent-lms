@@ -34,6 +34,10 @@ class AuthController extends Controller
             ]);
         }
 
+        if (!$user->hasRole('staff')) {
+            return response()->json(['message' => 'Bu API yalnızca staff kullanıcıları içindir.'], 403);
+        }
+
         $token = $user->createToken($request->device_name)->plainTextToken;
 
         return response()->json([

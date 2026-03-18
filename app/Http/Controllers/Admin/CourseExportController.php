@@ -15,6 +15,8 @@ class CourseExportController extends Controller
 {
     public function participants(Course $course, Request $request)
     {
+        $this->authorize('view', $course);
+
         $export = new CourseParticipantsExport(
             courseId:         $course->id,
             departmentFilter: $request->get('department', ''),
@@ -29,6 +31,8 @@ class CourseExportController extends Controller
 
     public function results(Course $course, Request $request)
     {
+        $this->authorize('view', $course);
+
         $departmentFilter = $request->get('department', '');
         $examFilter       = $request->get('exam_filter', '');
         $format           = $request->get('format', 'excel');

@@ -22,6 +22,9 @@ class CourseTable extends AdminComponent
     public string $filterCategory = '';
     public string $filterStatus = '';
     public string $filterMandatory = '';
+    public string $filterDateFrom = '';
+    public string $filterDateTo = '';
+    public string $filterCompletion = ''; // '0-25', '25-75', '75-100'
 
     // Sorting
     public string $sortField = 'created_at';
@@ -291,6 +294,32 @@ class CourseTable extends AdminComponent
         session()->flash('success', $newStatus === 'published' ? __('lms.course_published') : __('lms.course_drafted'));
     }
 
+    public function cloneCourse(int $courseId): void
+    {
+        $original = Course::with(['questions', 'videos', 'departments'])->findOrFail($courseId);
+
+        $clone = $original->replicate(['created_at', 'updated_at']);
+        $clone->title = $original->title . ' (Kopya)';
+        $clone->status = 'draft';
+        $clone->created_by = auth()->id();
+        $clone->save();
+
+        // Soruları kopyala
+        foreach ($original->questions as $q) {
+            $clone->questions()->create($q->only([
+                'question_type', 'question_text', 'option_a', 'option_b',
+                'option_c', 'option_d', 'correct_option', 'sort_order',
+            ]));
+        }
+
+        // Departmanları kopyala
+        $clone->departments()->sync($original->departments->pluck('id'));
+
+        Cache::forget('admin.course_status_counts');
+        Cache::forget('admin.course_stats');
+        session()->flash('success', "'{$original->title}' eğitimi kopyalandı.");
+    }
+
     // ── Query Builder ──
     private function getFilteredQuery()
     {
@@ -298,8 +327,14 @@ class CourseTable extends AdminComponent
             ->when($this->search, fn ($q) => $q->where('title', 'like', "%{$this->search}%"))
             ->when($this->filterCategory, fn ($q) => $q->where('category_id', $this->filterCategory))
             ->when($this->filterStatus, fn ($q) => $q->where('status', $this->filterStatus))
-            ->when($this->filterMandatory !== '', function ($q) {
-                $q->where('is_mandatory', $this->filterMandatory === '1');
+            ->when($this->filterMandatory !== '', fn ($q) => $q->where('is_mandatory', $this->filterMandatory === '1'))
+            ->when($this->filterDateFrom, fn ($q) => $q->where('created_at', '>=', $this->filterDateFrom))
+            ->when($this->filterDateTo, fn ($q) => $q->where('created_at', '<=', $this->filterDateTo . ' 23:59:59'))
+            ->when($this->filterCompletion, function ($q) {
+                [$min, $max] = explode('-', $this->filterCompletion);
+                $q->whereHas('enrollments', fn ($e) => $e->selectRaw('1'), '>=', 1)
+                  ->withCount(['enrollments', 'enrollments as completed_count' => fn ($e) => $e->where('status', 'completed')])
+                  ->havingRaw('(completed_count / enrollments_count * 100) BETWEEN ? AND ?', [(int)$min, (int)$max]);
             });
     }
 
@@ -332,8 +367,15 @@ class CourseTable extends AdminComponent
             $expiredCount = Course::where('end_date', '<', now())
                 ->where('status', 'published')
                 ->count();
+            $thisMonthCount = Course::whereYear('created_at', now()->year)
+                ->whereMonth('created_at', now()->month)
+                ->count();
+            $expiringSoonCount = Course::where('end_date', '>=', now())
+                ->where('end_date', '<=', now()->addDays(7))
+                ->where('status', 'published')
+                ->count();
 
-            return compact('totalEnrollments', 'avgCompletion', 'expiredCount');
+            return compact('totalEnrollments', 'avgCompletion', 'expiredCount', 'thisMonthCount', 'expiringSoonCount');
         });
 
         // Departments for bulk assign

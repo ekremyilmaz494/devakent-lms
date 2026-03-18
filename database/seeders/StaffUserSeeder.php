@@ -10,8 +10,6 @@ class StaffUserSeeder extends Seeder
 {
     public function run(): void
     {
-        $departments = Department::all();
-
         $staff = [
             ['first_name' => 'Ayşe', 'last_name' => 'Yılmaz', 'email' => 'ayse@devakent.com', 'registration_number' => 'DVK-1001', 'title' => 'Hemşire', 'department' => 'Hemşirelik'],
             ['first_name' => 'Mehmet', 'last_name' => 'Demir', 'email' => 'mehmet@devakent.com', 'registration_number' => 'DVK-1002', 'title' => 'Dahiliye Uzmanı', 'department' => 'Dahiliye'],
@@ -22,7 +20,10 @@ class StaffUserSeeder extends Seeder
         ];
 
         foreach ($staff as $s) {
-            $dept = $departments->firstWhere('name', $s['department']);
+            $dept = Department::firstOrCreate(
+                ['name' => $s['department']],
+                ['description' => $s['department'] . ' Birimi', 'is_active' => true]
+            );
 
             $user = User::create([
                 'name' => $s['first_name'] . ' ' . $s['last_name'],
@@ -32,7 +33,7 @@ class StaffUserSeeder extends Seeder
                 'password' => bcrypt(env('STAFF_DEFAULT_PASSWORD', 'Staff2024!')),
                 'registration_number' => $s['registration_number'],
                 'title' => $s['title'],
-                'department_id' => $dept?->id,
+                'department_id' => $dept->id,
                 'hire_date' => now()->subMonths(rand(1, 36)),
                 'is_active' => true,
                 'email_verified_at' => now(),

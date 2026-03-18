@@ -7,12 +7,10 @@ use App\Models\Enrollment;
 use App\Models\VideoProgress;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\On;
-use Livewire\Component;
-
-class CourseFlow extends Component
+class CourseFlow extends StaffComponent
 {
     public int $courseId;
-    public string $step = 'intro'; // intro, pre_exam_warning, pre_exam, video, post_exam_warning, post_exam, result, completed, failed
+    public string $step = 'intro'; // intro, pre_exam_warning, pre_exam, video, post_exam_warning, post_exam, result, completed, failed, survey
     public ?array $examResult = null;
     public ?int $currentVideoId = null;
 
@@ -152,12 +150,23 @@ class CourseFlow extends Component
             // Post-exam başarısız ama deneme hakkı var — sonuç ekranı göster
             $this->step = 'result';
         } elseif ($result['next_step'] === 'completed') {
-            $this->step = 'completed';
+            // Daha önce anket doldurulmamışsa survey adımına yönlendir
+            $alreadyAnswered = \App\Models\CourseSurveyResponse::where('user_id', auth()->id())
+                ->where('course_id', $this->courseId)
+                ->exists();
+            $this->step = $alreadyAnswered ? 'completed' : 'survey';
         } elseif ($result['next_step'] === 'failed') {
             $this->step = 'failed';
         } else {
             $this->step = $result['next_step'];
         }
+    }
+
+    #[On('surveyCompleted')]
+    #[On('surveySkipped')]
+    public function onSurveyDone(): void
+    {
+        $this->step = 'completed';
     }
 
     #[On('videoCompleted')]

@@ -5,6 +5,21 @@
 @section('content')
 <div class="space-y-5" x-data="{ filter: 'all' }">
 
+    {{-- ═══ Search Bar ═══ --}}
+    <form method="GET" action="{{ route('staff.courses.index') }}" class="relative">
+        <input type="text" name="search" value="{{ $search ?? '' }}"
+            placeholder="Eğitim ara..."
+            class="w-full sm:w-80 pl-9 pr-4 py-2 text-sm border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-gray-100 placeholder-gray-400 focus:ring-2 focus:ring-primary-500 focus:border-primary-500" />
+        <svg class="absolute left-2.5 top-2.5 w-4 h-4 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0" />
+        </svg>
+        @if(!empty($search))
+            <a href="{{ route('staff.courses.index') }}" class="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+            </a>
+        @endif
+    </form>
+
     {{-- ═══ Filter Tabs ═══ --}}
     <div class="overflow-x-auto -mx-4 px-4 sm:mx-0 sm:px-0">
         <div class="flex items-center gap-1 bg-gray-100 dark:bg-gray-800 rounded-xl p-1 w-max"

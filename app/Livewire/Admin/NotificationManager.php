@@ -6,7 +6,10 @@ use App\Models\Department;
 use App\Models\Notification;
 use App\Models\NotificationRecipient;
 use App\Models\User;
+use App\Notifications\AdminBroadcastNotification;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Notification as NotificationFacade;
 use Livewire\Component;
 use Livewire\WithPagination;
 
@@ -24,8 +27,8 @@ class NotificationManager extends AdminComponent
     protected function rules(): array
     {
         return [
-            'title' => 'required|string|max:100',
-            'message' => 'required|string|max:500',
+            'title' => ['required', 'string', 'max:100', 'regex:/^[^<>]*$/'],
+            'message' => ['required', 'string', 'max:500', 'regex:/^[^<>]*$/'],
             'type' => 'required|in:info,warning,success',
             'target_type' => 'required|in:all,department',
             'target_department_id' => 'required_if:target_type,department|nullable|exists:departments,id',
@@ -59,32 +62,47 @@ class NotificationManager extends AdminComponent
             return;
         }
 
-        $notification = Notification::create([
-            'title' => $this->title,
-            'message' => $this->message,
-            'type' => $this->type,
-            'created_by' => Auth::id(),
-            'target_type' => $this->target_type,
-            'target_department_id' => $this->target_type === 'department' ? $this->target_department_id : null,
-        ]);
+        [$notification, $recipients] = DB::transaction(function () {
+            $notification = Notification::create([
+                'title' => $this->title,
+                'message' => $this->message,
+                'type' => $this->type,
+                'created_by' => Auth::id(),
+                'target_type' => $this->target_type,
+                'target_department_id' => $this->target_type === 'department' ? $this->target_department_id : null,
+            ]);
 
-        // Determine recipients
-        $query = User::role('staff')->where('is_active', true);
-        if ($this->target_type === 'department' && $this->target_department_id) {
-            $query->where('department_id', $this->target_department_id);
-        }
+            $query = User::role('staff')->where('is_active', true);
+            if ($this->target_type === 'department' && $this->target_department_id) {
+                $query->where('department_id', $this->target_department_id);
+            }
+            $recipients = $query->pluck('id');
 
-        $recipients = $query->pluck('id');
+            $rows = $recipients->map(fn ($userId) => [
+                'notification_id' => $notification->id,
+                'user_id'         => $userId,
+                'is_read'         => false,
+            ])->all();
 
-        $rows = $recipients->map(fn ($userId) => [
-            'notification_id' => $notification->id,
-            'user_id'         => $userId,
-            'is_read'         => false,
-        ])->all();
+            foreach (array_chunk($rows, 500) as $chunk) {
+                NotificationRecipient::insert($chunk);
+            }
 
-        foreach (array_chunk($rows, 500) as $chunk) {
-            NotificationRecipient::insert($chunk);
-        }
+            return [$notification, $recipients];
+        });
+
+        // E-posta gönderimi transaction dışında (kuyruğa alınır)
+        $emailUsers = User::role('staff')->where('is_active', true)
+            ->when($this->target_type === 'department' && $this->target_department_id,
+                fn ($q) => $q->where('department_id', $this->target_department_id)
+            )
+            ->get();
+
+        NotificationFacade::send($emailUsers, new AdminBroadcastNotification(
+            $this->title,
+            $this->message,
+            $this->type
+        ));
 
         $this->reset(['title', 'message']);
         $this->type = 'info';

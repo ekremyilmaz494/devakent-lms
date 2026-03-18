@@ -100,6 +100,32 @@
                 <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Süresi Dolan</p>
             </div>
         </div>
+        {{-- Bu Ay --}}
+        <div class="group relative bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-lg hover:shadow-emerald-500/10 hover:-translate-y-0.5 transition-all duration-300">
+            <div class="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-emerald-400 to-emerald-600"></div>
+            <div class="p-4">
+                <div class="flex items-start justify-between mb-2">
+                    <div class="w-9 h-9 bg-gradient-to-br from-emerald-400 to-emerald-600 rounded-xl flex items-center justify-center shadow-lg shadow-emerald-500/30 group-hover:scale-110 transition-transform duration-300">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/></svg>
+                    </div>
+                </div>
+                <p class="text-2xl font-black text-gray-900 dark:text-white">{{ $stats['thisMonthCount'] }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">Bu Ay Eklenen</p>
+            </div>
+        </div>
+        {{-- Yaklaşan Bitiş --}}
+        <div class="group relative bg-white dark:bg-gray-800 rounded-2xl border border-gray-100 dark:border-gray-700 overflow-hidden hover:shadow-lg hover:shadow-amber-500/10 hover:-translate-y-0.5 transition-all duration-300">
+            <div class="absolute top-0 inset-x-0 h-0.5 bg-gradient-to-r from-amber-400 to-amber-600"></div>
+            <div class="p-4">
+                <div class="flex items-start justify-between mb-2">
+                    <div class="w-9 h-9 bg-gradient-to-br from-amber-400 to-amber-600 rounded-xl flex items-center justify-center shadow-lg shadow-amber-500/30 group-hover:scale-110 transition-transform duration-300">
+                        <svg class="w-4 h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6 6 0 10-12 0v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+                    </div>
+                </div>
+                <p class="text-2xl font-black text-gray-900 dark:text-white">{{ $stats['expiringSoonCount'] }}</p>
+                <p class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">7 Günde Bitiyor</p>
+            </div>
+        </div>
     </div>
 
     {{-- Status Tabs + View Toggle --}}
@@ -149,6 +175,18 @@
             <option value="1">{{ __('lms.filter_mandatory') }}</option>
             <option value="0">{{ __('lms.filter_optional') }}</option>
         </select>
+        <select wire:model.live="filterCompletion" class="border border-gray-300 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 pl-3 pr-8 py-2 focus:ring-primary-500 focus:border-primary-500">
+            <option value="">Tüm Tamamlanma</option>
+            <option value="0-25">%0–25 (Düşük)</option>
+            <option value="25-75">%25–75 (Orta)</option>
+            <option value="75-100">%75–100 (Yüksek)</option>
+        </select>
+        <input wire:model.live.debounce.500ms="filterDateFrom" type="date"
+            class="border border-gray-300 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-3 py-2 focus:ring-primary-500 focus:border-primary-500"
+            title="Başlangıç tarihi" />
+        <input wire:model.live.debounce.500ms="filterDateTo" type="date"
+            class="border border-gray-300 dark:border-gray-700 rounded-lg text-sm bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 px-3 py-2 focus:ring-primary-500 focus:border-primary-500"
+            title="Bitiş tarihi" />
     </div>
 
     {{-- Bulk Actions Bar --}}
@@ -324,6 +362,9 @@
                                     <button wire:click="viewDetail({{ $course->id }})" class="p-1.5 text-gray-400 hover:text-primary-600 hover:bg-primary-50 dark:hover:bg-primary-900/30 rounded-lg transition-colors" title="{{ __('lms.view_detail') }}">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
                                     </button>
+                                    <button wire:click="cloneCourse({{ $course->id }})" class="p-1.5 text-gray-400 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 rounded-lg transition-colors" title="Kopyala">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" /></svg>
+                                    </button>
                                     <a href="{{ route('admin.courses.edit', $course->id) }}" class="p-1.5 text-gray-400 hover:text-amber-600 hover:bg-amber-50 dark:hover:bg-amber-900/30 rounded-lg transition-colors" title="{{ __('lms.edit') }}">
                                         <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
                                     </a>
@@ -464,6 +505,9 @@
                     <div class="flex items-center justify-between pt-3 border-t border-gray-100 dark:border-gray-700">
                         <span class="text-[11px] text-gray-400" title="{{ $course->updated_at->format('d.m.Y H:i') }}">{{ $course->updated_at->diffForHumans() }}</span>
                         <div class="flex items-center gap-0.5" wire:click.stop>
+                            <button wire:click="cloneCourse({{ $course->id }})" class="p-1 text-gray-400 hover:text-indigo-600 rounded transition-colors" title="Kopyala">
+                                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M15.75 17.25v3.375c0 .621-.504 1.125-1.125 1.125h-9.75a1.125 1.125 0 01-1.125-1.125V7.875c0-.621.504-1.125 1.125-1.125H6.75a9.06 9.06 0 011.5.124m7.5 10.376h3.375c.621 0 1.125-.504 1.125-1.125V11.25c0-4.46-3.243-8.161-7.5-8.876a9.06 9.06 0 00-1.5-.124H9.375c-.621 0-1.125.504-1.125 1.125v3.5m7.5 10.375H9.375a1.125 1.125 0 01-1.125-1.125v-9.25m12 6.625v-1.875a3.375 3.375 0 00-3.375-3.375h-1.5a1.125 1.125 0 01-1.125-1.125v-1.5a3.375 3.375 0 00-3.375-3.375H9.75" /></svg>
+                            </button>
                             <a href="{{ route('admin.courses.edit', $course->id) }}" class="p-1 text-gray-400 hover:text-amber-600 rounded transition-colors" title="{{ __('lms.edit') }}">
                                 <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931z" /></svg>
                             </a>
@@ -623,13 +667,27 @@
                         @endif
                     </div>
 
-                    <div class="flex items-center justify-end gap-2 px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
-                        <button wire:click="$set('showDetailModal', false)" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
-                            {{ __('lms.dismiss') }}
+                    <div class="flex items-center justify-between gap-2 px-6 py-4 border-t border-gray-200 dark:border-gray-700 bg-gray-50/50 dark:bg-gray-800/50">
+                        <button wire:click="toggleStatus({{ $viewingCourse->id }})" class="inline-flex items-center gap-1.5 px-3 py-2 text-sm font-medium rounded-lg transition-colors
+                            {{ $viewingCourse->status === 'published'
+                                ? 'text-amber-700 bg-amber-50 border border-amber-200 hover:bg-amber-100 dark:bg-amber-900/30 dark:text-amber-300 dark:border-amber-700'
+                                : 'text-emerald-700 bg-emerald-50 border border-emerald-200 hover:bg-emerald-100 dark:bg-emerald-900/30 dark:text-emerald-300 dark:border-emerald-700' }}">
+                            @if($viewingCourse->status === 'published')
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M3.98 8.223A10.477 10.477 0 001.934 12C3.226 16.338 7.244 19.5 12 19.5c.993 0 1.953-.138 2.863-.395M6.228 6.228A10.45 10.45 0 0112 4.5c4.756 0 8.773 3.162 10.065 7.498a10.523 10.523 0 01-4.293 5.774M6.228 6.228L3 3m3.228 3.228l3.65 3.65m7.894 7.894L21 21m-3.228-3.228-3.65-3.65m0 0a3 3 0 10-4.243-4.243m4.242 4.242L9.88 9.88" /></svg>
+                                Taslağa Al
+                            @else
+                                <svg class="w-4 h-4" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" d="M2.036 12.322a1.012 1.012 0 010-.639C3.423 7.51 7.36 4.5 12 4.5c4.638 0 8.573 3.007 9.963 7.178.07.207.07.431 0 .639C20.577 16.49 16.64 19.5 12 19.5c-4.638 0-8.573-3.007-9.963-7.178z" /><path stroke-linecap="round" stroke-linejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /></svg>
+                                Yayımla
+                            @endif
                         </button>
-                        <a href="{{ route('admin.courses.edit', $viewingCourse->id) }}" class="px-4 py-2 text-sm font-semibold text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors shadow-sm">
-                            {{ __('lms.edit') }}
-                        </a>
+                        <div class="flex items-center gap-2">
+                            <button wire:click="$set('showDetailModal', false)" class="px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-colors">
+                                {{ __('lms.dismiss') }}
+                            </button>
+                            <a href="{{ route('admin.courses.edit', $viewingCourse->id) }}" class="px-4 py-2 text-sm font-semibold text-white bg-primary-600 rounded-lg hover:bg-primary-700 transition-colors shadow-sm">
+                                {{ __('lms.edit') }}
+                            </a>
+                        </div>
                     </div>
                 </div>
             </div>

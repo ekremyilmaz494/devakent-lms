@@ -12,11 +12,14 @@ use App\Models\User;
 use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
-use Livewire\Component;
+use Livewire\Attributes\Lazy;
+use Livewire\WithPagination;
 use Maatwebsite\Excel\Facades\Excel;
 
+#[Lazy]
 class ReportDashboard extends AdminComponent
 {
+    use WithPagination;
     public string $activeTab   = 'course';
     public bool   $showFilters = false;
 
@@ -43,6 +46,7 @@ class ReportDashboard extends AdminComponent
         $this->sortField     = 'completion_rate';
         $this->sortDirection = 'desc';
         $this->search        = '';
+        $this->resetPage('staffPage');
     }
 
     public function sortBy(string $field): void
@@ -63,6 +67,7 @@ class ReportDashboard extends AdminComponent
         $this->filterStatus     = '';
         $this->filterMandatory  = '';
         $this->search           = '';
+        $this->resetPage('staffPage');
     }
 
     public function removeFilter(string $key): void
@@ -86,9 +91,10 @@ class ReportDashboard extends AdminComponent
         $activeFilters = $this->computeActiveFilters($departments);
 
         return view('livewire.admin.report-dashboard', array_merge($data, [
-            'stats'         => $stats,
-            'departments'   => $departments,
-            'activeFilters' => $activeFilters,
+            'stats'          => $stats,
+            'departments'    => $departments,
+            'activeFilters'  => $activeFilters,
+            'staffPaginator' => $data['staffPaginator'] ?? null,
         ]));
     }
 
@@ -456,7 +462,7 @@ class ReportDashboard extends AdminComponent
 
     private function getStaffReport(): array
     {
-        $staff = User::role('staff')
+        $staffPaginator = User::role('staff')
             ->with('department')
             ->when($this->filterDepartment, fn ($q) => $q->where('department_id', $this->filterDepartment))
             ->when($this->search, fn ($q) => $q->where(fn ($q2) =>
@@ -466,7 +472,9 @@ class ReportDashboard extends AdminComponent
             ))
             ->withCount(['certificates'])
             ->orderBy('first_name')
-            ->get();
+            ->paginate(25, ['*'], 'staffPage');
+
+        $staff = $staffPaginator->getCollection();
 
         if ($staff->isEmpty()) {
             return ['reportData' => collect()];
@@ -527,7 +535,10 @@ class ReportDashboard extends AdminComponent
             ];
         });
 
-        return ['reportData' => $this->applySort($reportData, ['name', 'department', 'enrollments', 'completed', 'completion_rate', 'pre_exam_avg', 'post_exam_avg', 'certificates'])];
+        $sortedData = $this->applySort($reportData, ['name', 'department', 'enrollments', 'completed', 'completion_rate', 'pre_exam_avg', 'post_exam_avg', 'certificates']);
+        $staffPaginator->setCollection($sortedData);
+
+        return ['reportData' => $sortedData, 'staffPaginator' => $staffPaginator];
     }
 
     private function getTimeReport(): array

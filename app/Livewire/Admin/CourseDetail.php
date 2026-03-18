@@ -84,6 +84,20 @@ class CourseDetail extends AdminComponent
         $this->selectedVideoId = ($this->selectedVideoId === $videoId) ? null : $videoId;
     }
 
+    public function retranscodeVideo(int $videoId): void
+    {
+        $video = \App\Models\CourseVideo::where('id', $videoId)
+            ->where('course_id', $this->courseId)
+            ->firstOrFail();
+
+        abort_unless($video->video_path, 403, 'Video dosyası bulunamadı.');
+
+        $video->update(['transcode_status' => 'pending']);
+        \App\Jobs\TranscodeVideoJob::dispatch($videoId);
+
+        session()->flash('success', '"' . $video->title . '" yeniden işleme kuyruğuna eklendi.');
+    }
+
     public function updatingSearch(): void
     {
         $this->resetPage();
@@ -162,7 +176,21 @@ class CourseDetail extends AdminComponent
 
         $videoStats = $course->videos()->selectRaw('COUNT(*) as cnt, SUM(video_duration_seconds) as total_seconds')->first();
 
-        return compact('total', 'completed', 'rate', 'preAvg', 'postAvg', 'videoStats');
+        // Anket istatistikleri
+        $surveyStats = \App\Models\CourseSurveyResponse::where('course_id', $this->courseId)
+            ->selectRaw('
+                COUNT(*) as total_responses,
+                ROUND(AVG(rating_overall), 1) as avg_overall,
+                ROUND(AVG(rating_content), 1) as avg_content,
+                ROUND(AVG(rating_usefulness), 1) as avg_usefulness
+            ')->first();
+        $surveyDuration = \App\Models\CourseSurveyResponse::where('course_id', $this->courseId)
+            ->selectRaw('rating_duration, COUNT(*) as cnt')
+            ->groupBy('rating_duration')
+            ->pluck('cnt', 'rating_duration')
+            ->toArray();
+
+        return compact('total', 'completed', 'rate', 'preAvg', 'postAvg', 'videoStats', 'surveyStats', 'surveyDuration');
     }
 
     // -------------------------------------------------------------------------
@@ -275,34 +303,73 @@ class CourseDetail extends AdminComponent
     {
         $query = Enrollment::query()
             ->where('course_id', $this->courseId)
+            ->when($this->departmentFilter, fn ($q) =>
+                $q->whereHas('user', fn ($u) => $u->where('department_id', $this->departmentFilter))
+            )
+            ->when($this->examFilter === 'pre_only', fn ($q) =>
+                $q->whereHas('examAttempts', fn ($a) => $a->where('exam_type', 'pre_exam')->whereNotNull('finished_at'))
+            )
+            ->when($this->examFilter === 'post_only', fn ($q) =>
+                $q->whereHas('examAttempts', fn ($a) => $a->where('exam_type', 'post_exam')->whereNotNull('finished_at'))
+            )
+            ->when($this->examFilter === 'both', fn ($q) =>
+                $q->whereHas('examAttempts', fn ($a) => $a->where('exam_type', 'pre_exam')->whereNotNull('finished_at'))
+                  ->whereHas('examAttempts', fn ($a) => $a->where('exam_type', 'post_exam')->whereNotNull('finished_at'))
+            )
+            ->when($this->minScore !== '', fn ($q) => $q->whereHas('examAttempts', fn ($a) =>
+                $a->where('exam_type', 'post_exam')->whereNotNull('finished_at')->where('score', '>=', (float) $this->minScore)
+            ))
+            ->when($this->maxScore !== '', fn ($q) => $q->whereHas('examAttempts', fn ($a) =>
+                $a->where('exam_type', 'post_exam')->whereNotNull('finished_at')->where('score', '<=', (float) $this->maxScore)
+            ));
+
+        // Aggregate stats via DB subqueries — no full load into PHP memory
+        $enrollmentSubquery = (clone $query)->select('id');
+
+        $postStats = ExamAttempt::whereIn('enrollment_id', $enrollmentSubquery)
+            ->where('exam_type', 'post_exam')
+            ->whereNotNull('finished_at')
+            ->selectRaw('AVG(score) as avg_post, MAX(score) as max_post, MIN(score) as min_post, SUM(CASE WHEN is_passed = 1 THEN 1 ELSE 0 END) as pass_count, COUNT(*) as total')
+            ->first();
+
+        $preAvg = ExamAttempt::whereIn('enrollment_id', $enrollmentSubquery)
+            ->where('exam_type', 'pre_exam')
+            ->whereNotNull('finished_at')
+            ->avg('score');
+
+        $avgImprovement = ExamAttempt::from('exam_attempts as ea_post')
+            ->join('exam_attempts as ea_pre', fn ($j) =>
+                $j->on('ea_pre.enrollment_id', '=', 'ea_post.enrollment_id')
+                  ->where('ea_pre.exam_type', '=', 'pre_exam')
+                  ->whereNotNull('ea_pre.finished_at')
+            )
+            ->whereIn('ea_post.enrollment_id', $enrollmentSubquery)
+            ->where('ea_post.exam_type', 'post_exam')
+            ->whereNotNull('ea_post.finished_at')
+            ->selectRaw('AVG(ea_post.score - ea_pre.score) as avg_improve')
+            ->first()?->avg_improve;
+
+        $examStats = [
+            'avg_pre'      => round((float) ($preAvg ?? 0), 1),
+            'avg_post'     => round((float) ($postStats->avg_post ?? 0), 1),
+            'avg_improve'  => round((float) ($avgImprovement ?? 0), 1),
+            'highest_post' => (float) ($postStats->max_post ?? 0),
+            'lowest_post'  => (float) ($postStats->min_post ?? 0),
+            'pass_rate'    => ($postStats->total ?? 0) > 0
+                ? round(($postStats->pass_count ?? 0) / $postStats->total * 100, 1)
+                : 0,
+        ];
+
+        // Paginate display rows (25 per page) — only loads current page into memory
+        $resultsPaginator = $query
             ->with([
                 'user.department',
                 'examAttempts' => fn ($q) => $q->whereNotNull('finished_at')->orderBy('finished_at'),
             ])
-            ->when($this->departmentFilter, fn ($q) =>
-                $q->whereHas('user', fn ($u) => $u->where('department_id', $this->departmentFilter))
-            );
+            ->paginate(25, ['*'], 'resultsPage');
 
-        if ($this->examFilter === 'pre_only') {
-            $query->whereHas('examAttempts', fn ($q) =>
-                $q->where('exam_type', 'pre_exam')->whereNotNull('finished_at')
-            );
-        } elseif ($this->examFilter === 'post_only') {
-            $query->whereHas('examAttempts', fn ($q) =>
-                $q->where('exam_type', 'post_exam')->whereNotNull('finished_at')
-            );
-        } elseif ($this->examFilter === 'both') {
-            $query->whereHas('examAttempts', fn ($q) =>
-                $q->where('exam_type', 'pre_exam')->whereNotNull('finished_at')
-            )->whereHas('examAttempts', fn ($q) =>
-                $q->where('exam_type', 'post_exam')->whereNotNull('finished_at')
-            );
-        }
-
-        $enrollments = $query->get();
-
-        // Build result rows in PHP
-        $rows = $enrollments->map(function ($enrollment) {
+        // Map current page to result rows
+        $rows = $resultsPaginator->getCollection()->map(function ($enrollment) {
             $preAttempt  = $enrollment->examAttempts->where('exam_type', 'pre_exam')->sortByDesc('finished_at')->first();
             $postAttempt = $enrollment->examAttempts->where('exam_type', 'post_exam')->sortByDesc('finished_at')->first();
 
@@ -322,15 +389,7 @@ class CourseDetail extends AdminComponent
             ];
         });
 
-        // Apply score range filters
-        if ($this->minScore !== '') {
-            $rows = $rows->filter(fn ($r) => $r['post_score'] !== null && $r['post_score'] >= (float) $this->minScore);
-        }
-        if ($this->maxScore !== '') {
-            $rows = $rows->filter(fn ($r) => $r['post_score'] !== null && $r['post_score'] <= (float) $this->maxScore);
-        }
-
-        // Sorting (collection-based)
+        // Sorting on current page
         $dir = $this->sortDirection;
         $rows = match ($this->sortField) {
             'name'        => $dir === 'asc'
@@ -345,23 +404,11 @@ class CourseDetail extends AdminComponent
             default       => $rows,
         };
 
-        $postScores = $rows->whereNotNull('post_score')->pluck('post_score');
-
-        $examStats = [
-            'avg_pre'      => round((float) ($rows->whereNotNull('pre_score')->avg('pre_score') ?? 0), 1),
-            'avg_post'     => round((float) ($postScores->avg() ?? 0), 1),
-            'avg_improve'  => round((float) ($rows->whereNotNull('improvement')->avg('improvement') ?? 0), 1),
-            'highest_post' => (float) ($postScores->max() ?? 0),
-            'lowest_post'  => (float) ($postScores->min() ?? 0),
-            'pass_rate'    => $rows->count() > 0
-                ? round($rows->where('is_passed', true)->count() / $rows->count() * 100, 1)
-                : 0,
-        ];
-
-        $resultRows  = $rows->values();
+        $resultsPaginator->setCollection($rows->values());
+        $resultRows  = $resultsPaginator->getCollection();
         $departments = Department::where('is_active', true)->orderBy('name')->get();
 
-        return compact('resultRows', 'examStats', 'departments');
+        return compact('resultRows', 'resultsPaginator', 'examStats', 'departments');
     }
 
     // -------------------------------------------------------------------------

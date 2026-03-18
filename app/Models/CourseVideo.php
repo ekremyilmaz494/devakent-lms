@@ -9,10 +9,18 @@ use Illuminate\Database\Eloquent\Relations\HasMany;
 class CourseVideo extends Model
 {
     protected $fillable = [
-        'course_id', 'title', 'video_path',
+        'course_id', 'title', 'video_path', 'url', 'description',
         'video_duration_seconds', 'sort_order',
         'hls_path', 'transcode_status',
     ];
+
+    protected function casts(): array
+    {
+        return [
+            'video_duration_seconds' => 'integer',
+            'sort_order'             => 'integer',
+        ];
+    }
 
     public function isHlsReady(): bool
     {

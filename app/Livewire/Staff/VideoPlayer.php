@@ -6,9 +6,7 @@ use App\Models\CourseVideo;
 use App\Models\Enrollment;
 use App\Models\VideoProgress;
 use Illuminate\Support\Facades\DB;
-use Livewire\Component;
-
-class VideoPlayer extends Component
+class VideoPlayer extends StaffComponent
 {
     public int $enrollmentId;
     public int $courseVideoId;

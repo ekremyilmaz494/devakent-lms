@@ -5,9 +5,7 @@ namespace App\Livewire\Staff;
 use App\Models\Enrollment;
 use App\Models\ExamAttempt;
 use App\Services\ExamService;
-use Livewire\Component;
-
-class ExamEngine extends Component
+class ExamEngine extends StaffComponent
 {
     public int $enrollmentId;
     public string $examType; // pre_exam or post_exam
@@ -31,16 +29,48 @@ class ExamEngine extends Component
 
         $this->timeRemaining = ($course->exam_duration_minutes ?? 30) * 60;
 
-        // Get shuffled questions
-        $questions = $course->questions->shuffle()->values();
-        $this->questions = $questions->map(fn($q) => [
-            'id' => $q->id,
-            'question_text' => $q->question_text,
-            'option_a' => $q->option_a,
-            'option_b' => $q->option_b,
-            'option_c' => $q->option_c,
-            'option_d' => $q->option_d,
-        ])->toArray();
+        // Soru karıştırma — kurs ayarına göre
+        $questions = $course->shuffle_questions
+            ? $course->questions->shuffle()->values()
+            : $course->questions->values();
+        $this->questions = $questions->map(function ($q) use ($course) {
+            $options = ['a' => $q->option_a, 'b' => $q->option_b, 'c' => $q->option_c, 'd' => $q->option_d];
+
+            if ($course->shuffle_questions && $q->question_type === 'multiple_choice') {
+                $filled = array_filter($options, fn ($v) => !is_null($v));
+                $keys   = array_keys($filled);
+                shuffle($keys);
+                $shuffled = [];
+                $correctOld = $q->correct_option;
+                $newCorrect = null;
+                foreach (array_keys($filled) as $i => $origKey) {
+                    $newKey = $keys[$i] ?? $origKey;
+                    $shuffled[$newKey] = $filled[$origKey];
+                    if ($origKey === $correctOld) $newCorrect = $newKey;
+                }
+                return [
+                    'id'             => $q->id,
+                    'question_type'  => $q->question_type,
+                    'question_text'  => $q->question_text,
+                    'option_a'       => $shuffled['a'] ?? null,
+                    'option_b'       => $shuffled['b'] ?? null,
+                    'option_c'       => $shuffled['c'] ?? null,
+                    'option_d'       => $shuffled['d'] ?? null,
+                    'correct_option' => $newCorrect ?? $q->correct_option,
+                ];
+            }
+
+            return [
+                'id'             => $q->id,
+                'question_type'  => $q->question_type,
+                'question_text'  => $q->question_text,
+                'option_a'       => $q->option_a,
+                'option_b'       => $q->option_b,
+                'option_c'       => $q->option_c,
+                'option_d'       => $q->option_d,
+                'correct_option' => $q->correct_option,
+            ];
+        })->toArray();
 
         // Create exam attempt
         $examService = new ExamService();
@@ -48,17 +78,32 @@ class ExamEngine extends Component
         $this->attemptId = $attempt->id;
     }
 
-    public function selectAnswer(string $option): void
+    public function selectAnswer(string $answer): void
     {
         if ($this->isFinished) return;
 
         $question = $this->questions[$this->currentQuestionIndex];
-        $this->answers[$question['id']] = $option;
+        $this->answers[$question['id']] = $answer;
 
         // Save immediately to DB
         $attempt = ExamAttempt::find($this->attemptId);
         $examService = new ExamService();
-        $examService->saveAnswer($attempt, $question['id'], $option);
+        $examService->saveAnswer($attempt, $question['id'], $answer);
+    }
+
+    public function saveTextAnswer(string $text): void
+    {
+        if ($this->isFinished) return;
+
+        $question = $this->questions[$this->currentQuestionIndex];
+        $trimmed = trim($text);
+        $this->answers[$question['id']] = $trimmed ?: null;
+
+        if ($trimmed) {
+            $attempt = ExamAttempt::find($this->attemptId);
+            $examService = new ExamService();
+            $examService->saveAnswer($attempt, $question['id'], $trimmed);
+        }
     }
 
     public function nextQuestion(): void

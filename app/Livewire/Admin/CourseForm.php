@@ -34,6 +34,17 @@ class CourseForm extends AdminComponent
     public bool $is_mandatory = false;
     public string $status = 'draft';
 
+    // Yeni alanlar
+    public $thumbnailFile = null;
+    public ?string $thumbnailPath = null;
+    public bool $shuffle_questions = false;
+    public bool $exam_required = true;
+    public ?int $prerequisite_course_id = null;
+    public ?int $repeat_period_months = null;
+    public string $language = 'tr';
+    public string $instructor = '';
+    public string $tagsInput = ''; // virgülle ayrılmış tag girişi
+
     // Department assignment
     public array $selectedDepartments = [];
 
@@ -68,17 +79,29 @@ class CourseForm extends AdminComponent
             'max_attempts' => 'required|integer|min:1|max:10',
             'is_mandatory' => 'boolean',
             'status' => 'required|in:draft,published',
+            'shuffle_questions' => 'boolean',
+            'exam_required' => 'boolean',
+            'prerequisite_course_id' => 'nullable|exists:courses,id',
+            'repeat_period_months' => 'nullable|integer|min:1|max:120',
+            'language' => 'required|string|max:10',
+            'instructor' => 'nullable|string|max:255',
+            'thumbnailFile' => 'nullable|image|mimes:jpg,jpeg,png,webp|max:2048',
             'selectedDepartments' => 'array',
             'videos' => 'array',
             'videos.*.title' => 'required|string|max:255',
+            'videos.*.url' => 'nullable|url:http,https',
             'videoFiles.*' => 'nullable|file|mimes:mp4,avi,mov,wmv|max:512000',
+            'resources' => 'array',
+            'resources.*.title' => 'nullable|string|max:255',
+            'resources.*.url' => 'nullable|url:http,https',
             'questions' => 'array',
+            'questions.*.question_type' => 'required|in:multiple_choice,true_false,open_ended',
             'questions.*.question_text' => 'required|string',
-            'questions.*.option_a' => 'required|string',
-            'questions.*.option_b' => 'required|string',
-            'questions.*.option_c' => 'required|string',
-            'questions.*.option_d' => 'required|string',
-            'questions.*.correct_option' => 'required|in:a,b,c,d',
+            'questions.*.option_a' => 'required_if:questions.*.question_type,multiple_choice|nullable|string',
+            'questions.*.option_b' => 'required_if:questions.*.question_type,multiple_choice|nullable|string',
+            'questions.*.option_c' => 'nullable|string',
+            'questions.*.option_d' => 'nullable|string',
+            'questions.*.correct_option' => 'required_unless:questions.*.question_type,open_ended|nullable|in:a,b,c,d',
         ];
     }
 
@@ -116,6 +139,14 @@ class CourseForm extends AdminComponent
             $this->max_attempts = $course->max_attempts;
             $this->is_mandatory = $course->is_mandatory;
             $this->status = $course->status;
+            $this->thumbnailPath = $course->thumbnail;
+            $this->shuffle_questions = $course->shuffle_questions ?? false;
+            $this->exam_required = $course->exam_required ?? true;
+            $this->prerequisite_course_id = $course->prerequisite_course_id;
+            $this->repeat_period_months = $course->repeat_period_months;
+            $this->language = $course->language ?? 'tr';
+            $this->instructor = $course->instructor ?? '';
+            $this->tagsInput = $course->tags ? implode(', ', $course->tags) : '';
             $this->selectedDepartments = $course->departments->pluck('id')->toArray();
             $this->selectedPersonnel   = Enrollment::where('course_id', $courseId)
                 ->pluck('user_id')->map(fn ($id) => (int) $id)->toArray();
@@ -124,17 +155,20 @@ class CourseForm extends AdminComponent
                 'id' => $v->id,
                 'title' => $v->title,
                 'existing_path' => $v->video_path,
+                'url' => $v->url ?? '',
+                'description' => $v->description ?? '',
                 'sort_order' => $v->sort_order,
             ])->toArray();
 
             $this->questions = $course->questions->map(fn ($q) => [
-                'id' => $q->id,
+                'id'            => $q->id,
+                'question_type' => $q->question_type ?? 'multiple_choice',
                 'question_text' => $q->question_text,
-                'option_a' => $q->option_a,
-                'option_b' => $q->option_b,
-                'option_c' => $q->option_c,
-                'option_d' => $q->option_d,
-                'correct_option' => $q->correct_option,
+                'option_a'      => $q->option_a ?? '',
+                'option_b'      => $q->option_b ?? '',
+                'option_c'      => $q->option_c ?? '',
+                'option_d'      => $q->option_d ?? '',
+                'correct_option' => $q->correct_option ?? 'a',
             ])->toArray();
 
             $this->resources = $course->resources->map(fn ($r) => [
@@ -155,6 +189,8 @@ class CourseForm extends AdminComponent
             'id' => null,
             'title' => '',
             'existing_path' => null,
+            'url' => '',
+            'description' => '',
             'sort_order' => count($this->videos) + 1,
         ];
     }
@@ -225,15 +261,16 @@ class CourseForm extends AdminComponent
 
     // ── Soru Yönetimi ──
 
-    public function addQuestion(): void
+    public function addQuestion(string $type = 'multiple_choice'): void
     {
         $this->questions[] = [
-            'id' => null,
+            'id'            => null,
+            'question_type' => $type,
             'question_text' => '',
-            'option_a' => '',
-            'option_b' => '',
-            'option_c' => '',
-            'option_d' => '',
+            'option_a'      => $type === 'true_false' ? 'Doğru' : '',
+            'option_b'      => $type === 'true_false' ? 'Yanlış' : '',
+            'option_c'      => '',
+            'option_d'      => '',
             'correct_option' => 'a',
         ];
     }
@@ -268,23 +305,41 @@ class CourseForm extends AdminComponent
     {
         $this->validate();
 
-        // Yeni eklenen videolar (id'siz) için dosya zorunlu
+        // Yeni eklenen videolar için dosya veya URL zorunlu
         foreach ($this->videos as $index => $videoData) {
-            if (empty($videoData['id']) && empty($this->videoFiles[$index])) {
+            $hasFile = isset($this->videoFiles[$index]) && $this->videoFiles[$index] !== null && $this->videoFiles[$index] !== '';
+            $hasUrl  = !empty($videoData['url']);
+            if (empty($videoData['id']) && !$hasFile && !$hasUrl) {
                 $this->addError("videoFiles.{$index}", __('lms.val_video_file_required'));
                 return;
             }
         }
 
+        // Thumbnail yükleme
+        if ($this->thumbnailFile) {
+            $this->thumbnailPath = $this->thumbnailFile->store('thumbnails', 'public');
+        }
+
+        // Tags parse
+        $tags = array_values(array_filter(array_map('trim', explode(',', $this->tagsInput))));
+
         $data = [
             'title' => $this->title,
             'description' => $this->description ?: null,
             'category_id' => $this->category_id,
+            'thumbnail' => $this->thumbnailPath,
             'start_date' => $this->start_date ?: null,
             'end_date' => $this->end_date ?: null,
             'exam_duration_minutes' => $this->exam_duration_minutes,
             'passing_score' => $this->passing_score,
             'max_attempts' => $this->max_attempts,
+            'shuffle_questions' => $this->shuffle_questions,
+            'exam_required' => $this->exam_required,
+            'prerequisite_course_id' => $this->prerequisite_course_id ?: null,
+            'repeat_period_months' => $this->repeat_period_months ?: null,
+            'language' => $this->language,
+            'instructor' => $this->instructor ?: null,
+            'tags' => !empty($tags) ? $tags : null,
             'is_mandatory' => $this->is_mandatory,
             'status' => $this->status,
         ];
@@ -316,15 +371,17 @@ class CourseForm extends AdminComponent
             // ── Soru Sync ──
             $existingQuestionIds = [];
             foreach ($this->questions as $index => $qData) {
+                $type = $qData['question_type'] ?? 'multiple_choice';
                 $questionData = [
-                    'course_id' => $course->id,
+                    'course_id'     => $course->id,
+                    'question_type' => $type,
                     'question_text' => $qData['question_text'],
-                    'option_a' => $qData['option_a'],
-                    'option_b' => $qData['option_b'],
-                    'option_c' => $qData['option_c'],
-                    'option_d' => $qData['option_d'],
-                    'correct_option' => $qData['correct_option'],
-                    'sort_order' => $index + 1,
+                    'option_a'      => $type !== 'open_ended' ? ($qData['option_a'] ?: ($type === 'true_false' ? 'Doğru' : null)) : null,
+                    'option_b'      => $type !== 'open_ended' ? ($qData['option_b'] ?: ($type === 'true_false' ? 'Yanlış' : null)) : null,
+                    'option_c'      => $type === 'multiple_choice' ? ($qData['option_c'] ?: null) : null,
+                    'option_d'      => $type === 'multiple_choice' ? ($qData['option_d'] ?: null) : null,
+                    'correct_option' => $type === 'open_ended' ? null : ($qData['correct_option'] ?? 'a'),
+                    'sort_order'    => $index + 1,
                 ];
 
                 if (!empty($qData['id'])) {
@@ -373,14 +430,21 @@ class CourseForm extends AdminComponent
             $record = [
                 'course_id' => $course->id,
                 'title' => $videoData['title'],
+                'url' => $videoData['url'] ?: null,
+                'description' => $videoData['description'] ?: null,
                 'sort_order' => $index + 1,
             ];
 
             // Dosya yükleme — ayrı $videoFiles property'den al
             $file = $this->videoFiles[$index] ?? null;
             if ($file) {
-                $path = $file->store('videos', 'local');
-                $record['video_path'] = $path;
+                try {
+                    $path = $file->store('videos', 'local');
+                    $record['video_path'] = $path;
+                } catch (\Exception $e) {
+                    $this->addError("videoFiles.{$index}", 'Video yüklenirken hata oluştu: ' . $e->getMessage());
+                    return;
+                }
             }
 
             if (!empty($videoData['id'])) {
@@ -390,8 +454,8 @@ class CourseForm extends AdminComponent
                     $courseVideo->update($record);
                 }
             } else {
-                // Yeni video — dosya zorunlu
-                if ($file) {
+                // Yeni video — dosya veya URL olmalı
+                if ($file || !empty($videoData['url'])) {
                     CourseVideo::create($record);
                 }
             }
@@ -418,9 +482,14 @@ class CourseForm extends AdminComponent
 
             $file = $this->resourceFiles[$index] ?? null;
             if ($file) {
-                $path = $file->store('resources', 'local');
-                $record['file_path'] = $path;
-                $record['file_size'] = $file->getSize();
+                try {
+                    $path = $file->store('resources', 'local');
+                    $record['file_path'] = $path;
+                    $record['file_size'] = $file->getSize();
+                } catch (\Exception $e) {
+                    $this->addError("resourceFiles.{$index}", 'Kaynak yüklenirken hata oluştu: ' . $e->getMessage());
+                    return;
+                }
             }
 
             if (!empty($resData['id'])) {
@@ -486,6 +555,10 @@ class CourseForm extends AdminComponent
                 ->get()
         );
 
-        return view('livewire.admin.course-form', compact('categories', 'departments'));
+        $allCourses = Course::where('id', '!=', $this->courseId ?? 0)
+            ->orderBy('title')
+            ->get(['id', 'title']);
+
+        return view('livewire.admin.course-form', compact('categories', 'departments', 'allCourses'));
     }
 }

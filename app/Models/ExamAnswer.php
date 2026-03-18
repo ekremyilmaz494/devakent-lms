@@ -11,7 +11,7 @@ class ExamAnswer extends Model
 
     protected $fillable = [
         'exam_attempt_id', 'question_id',
-        'selected_option', 'is_correct', 'answered_at',
+        'selected_option', 'text_answer', 'is_correct', 'answered_at',
     ];
 
     protected function casts(): array

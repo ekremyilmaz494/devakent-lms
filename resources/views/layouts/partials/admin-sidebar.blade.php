@@ -35,8 +35,8 @@
          x-on:livewire:navigated.window="updateMenu()">
 
         {{-- Dashboard --}}
-        @php $isDashboard = request()->routeIs('admin.dashboard'); @endphp
-        <a href="{{ route('admin.dashboard') }}" wire:navigate
+        @php $isDashboard = request()->routeIs('admin.dashboard.index'); @endphp
+        <a href="{{ route('admin.dashboard.index') }}" wire:navigate
            class="flex items-center px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 group {{ $isDashboard ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white' }}">
             <svg class="w-[18px] h-[18px] flex-shrink-0 {{ $isDashboard ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M4 5a1 1 0 011-1h4a1 1 0 011 1v5a1 1 0 01-1 1H5a1 1 0 01-1-1V5zM14 5a1 1 0 011-1h4a1 1 0 011 1v2a1 1 0 01-1 1h-4a1 1 0 01-1-1V5zM4 16a1 1 0 011-1h4a1 1 0 011 1v3a1 1 0 01-1 1H5a1 1 0 01-1-1v-3zM14 13a1 1 0 011-1h4a1 1 0 011 1v6a1 1 0 01-1 1h-4a1 1 0 01-1-1v-6z" />
@@ -143,7 +143,7 @@
                 </button>
 
                 {{-- Dropdown --}}
-                <div x-show="open" @click.away="open = false"
+                <div x-show="open" @click.outside="open = false"
                      x-transition:enter="transition ease-out duration-200"
                      x-transition:enter-start="opacity-0 scale-95 translate-y-2"
                      x-transition:enter-end="opacity-100 scale-100 translate-y-0"

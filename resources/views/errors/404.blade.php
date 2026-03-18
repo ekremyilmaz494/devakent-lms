@@ -18,7 +18,7 @@
         <p class="text-gray-500 mb-8">Aradığınız sayfa mevcut değil veya taşındı. Lütfen adresi kontrol edin.</p>
         <div class="flex items-center justify-center gap-3">
             @auth
-                <a href="{{ auth()->user()->hasRole('admin') ? route('admin.dashboard') : route('staff.dashboard') }}"
+                <a href="{{ auth()->user()->hasRole('admin') ? route('admin.dashboard.index') : route('staff.dashboard.index') }}"
                    class="inline-flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-primary-600 to-primary-500 text-white font-semibold text-sm rounded-xl hover:from-primary-700 hover:to-primary-600 transition-all shadow-lg shadow-primary-500/25">
                     <svg class="w-4 h-4" aria-hidden="true" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"/></svg>
                     Ana Sayfa

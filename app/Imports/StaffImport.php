@@ -17,6 +17,30 @@ class StaffImport implements ToCollection, WithHeadingRow
 
     public function collection(Collection $rows): void
     {
+        // Zorunlu kolon kontrolü
+        if ($rows->isEmpty()) {
+            throw new \InvalidArgumentException('CSV dosyası boş.');
+        }
+
+        $keys = $rows->first()->keys()->map(fn ($k) => mb_strtolower(trim($k)))->all();
+        $missing = [];
+
+        if (!in_array('ad', $keys, true)) {
+            $missing[] = 'ad';
+        }
+        if (!in_array('soyad', $keys, true)) {
+            $missing[] = 'soyad';
+        }
+        if (!in_array('eposta', $keys, true) && !in_array('e_posta', $keys, true)) {
+            $missing[] = 'eposta';
+        }
+
+        if (!empty($missing)) {
+            throw new \InvalidArgumentException(
+                'CSV dosyasında zorunlu kolonlar eksik: ' . implode(', ', $missing)
+            );
+        }
+
         $departments = Department::where('is_active', true)->pluck('id', 'name');
 
         foreach ($rows as $index => $row) {

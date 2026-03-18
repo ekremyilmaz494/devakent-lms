@@ -12,8 +12,9 @@
     <meta name="csrf-token" content="{{ csrf_token() }}">
     <title>@yield('title', 'Yönetici Paneli') — {{ config('app.name') }}</title>
     <link rel="icon" href="{{ asset('images/favicon.ico') }}" type="image/x-icon">
-    <link rel="preconnect" href="https://fonts.bunny.net">
-    <link href="https://fonts.bunny.net/css?family=oxanium:300,400,500,600,700|merriweather:400,700|fira-code:400,500&display=swap" rel="stylesheet" />
+    <link rel="preconnect" href="https://fonts.bunny.net" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.bunny.net/css?family=oxanium:300,400,500,600,700|merriweather:400,700|fira-code:400,500&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+    <noscript><link href="https://fonts.bunny.net/css?family=oxanium:300,400,500,600,700|merriweather:400,700|fira-code:400,500&display=swap" rel="stylesheet"></noscript>
     @vite(['resources/css/app.css', 'resources/js/app.js'])
     @livewireStyles
 </head>

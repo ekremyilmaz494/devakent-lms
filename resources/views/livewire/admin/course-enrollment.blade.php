@@ -9,10 +9,16 @@
                 <h3 class="text-sm font-semibold text-gray-800 dark:text-white">{{ __('lms.enrolled_staff') }}</h3>
                 <span class="px-2 py-0.5 rounded-full text-xs font-bold bg-primary-100 dark:bg-primary-900/30 text-primary-600 dark:text-primary-400">{{ $course->enrollments_count }}</span>
             </div>
-            <button wire:click="openModal" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-gradient-to-r from-primary-500 to-primary-700 text-white rounded-lg hover:from-primary-600 hover:to-primary-800 transition-all">
-                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
-                {{ __('lms.assign_staff') }}
-            </button>
+            <div class="flex items-center gap-2">
+                <button wire:click="$set('showCsvModal', true)" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-white dark:bg-gray-700 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-200 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-600 transition-all">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
+                    CSV ile Aktar
+                </button>
+                <button wire:click="openModal" class="inline-flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold bg-gradient-to-r from-primary-500 to-primary-700 text-white rounded-lg hover:from-primary-600 hover:to-primary-800 transition-all">
+                    <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6v6m0 0v6m0-6h6m-6 0H6"/></svg>
+                    {{ __('lms.assign_staff') }}
+                </button>
+            </div>
         </div>
 
         <div class="overflow-x-auto">
@@ -135,6 +141,44 @@
                         {{ __('lms.assign_selected') }}
                     </button>
                 </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    {{-- CSV Import Modal --}}
+    @if($showCsvModal)
+    <div class="fixed inset-0 bg-black/50 flex items-center justify-center z-50" wire:click.self="$set('showCsvModal', false)">
+        <div class="bg-white dark:bg-gray-800 rounded-xl shadow-xl w-full max-w-md mx-4">
+            <div class="flex items-center justify-between px-6 py-4 border-b border-gray-200 dark:border-gray-700">
+                <h3 class="text-sm font-semibold text-gray-800 dark:text-white">CSV ile Toplu Kayıt</h3>
+                <button wire:click="$set('showCsvModal', false)" class="text-gray-400 hover:text-gray-600">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+                </button>
+            </div>
+            <div class="p-6 space-y-4">
+                <div class="p-3 bg-blue-50 dark:bg-blue-900/20 rounded-lg text-xs text-blue-700 dark:text-blue-300 space-y-1">
+                    <p class="font-semibold">CSV formatı:</p>
+                    <p>Sütunlar: <code class="bg-blue-100 dark:bg-blue-800/40 px-1 rounded">eposta</code> veya <code class="bg-blue-100 dark:bg-blue-800/40 px-1 rounded">sicil_no</code></p>
+                    <p>İlk satır başlık olmalıdır. XLSX ve CSV desteklenmektedir.</p>
+                </div>
+                <div>
+                    <label class="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1.5">Dosya Seç</label>
+                    <input type="file" wire:model="csvFile" accept=".csv,.xlsx,.xls"
+                        class="w-full border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 text-sm bg-white dark:bg-gray-700 text-gray-900 dark:text-gray-100 cursor-pointer file:mr-3 file:py-1 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-medium file:bg-primary-100 file:text-primary-700 file:cursor-pointer" />
+                    @error('csvFile') <p class="text-red-500 text-xs mt-1">{{ $message }}</p> @enderror
+                </div>
+            </div>
+            <div class="px-6 py-4 border-t border-gray-200 dark:border-gray-700 flex justify-end gap-3">
+                <button wire:click="$set('showCsvModal', false)" class="px-4 py-2 text-sm font-medium text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-700 rounded-lg hover:bg-gray-200 transition-colors">İptal</button>
+                <button wire:click="importCsv" wire:loading.attr="disabled" wire:target="importCsv"
+                    class="inline-flex items-center gap-2 px-4 py-2 text-sm font-semibold text-white bg-gradient-to-r from-primary-500 to-primary-700 rounded-lg hover:from-primary-600 hover:to-primary-800 transition-all disabled:opacity-50">
+                    <span wire:loading.remove wire:target="importCsv">İçe Aktar</span>
+                    <span wire:loading wire:target="importCsv" class="flex items-center gap-1.5">
+                        <svg class="w-4 h-4 animate-spin" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"/><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z"/></svg>
+                        Aktarılıyor...
+                    </span>
+                </button>
             </div>
         </div>
     </div>

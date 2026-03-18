@@ -7,13 +7,12 @@ use App\Http\Controllers\Admin\CourseExportController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DepartmentController;
 use App\Http\Controllers\Admin\NotificationController;
-use App\Http\Controllers\Admin\QuestionController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SettingController;
 use App\Http\Controllers\Admin\StaffController;
 use Illuminate\Support\Facades\Route;
 
-Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard');
+Route::get('/dashboard', [DashboardController::class, 'index'])->name('dashboard.index');
 
 Route::get('/courses', [CourseController::class, 'index'])->name('courses.index');
 Route::get('/courses/create', [CourseController::class, 'create'])->name('courses.create');

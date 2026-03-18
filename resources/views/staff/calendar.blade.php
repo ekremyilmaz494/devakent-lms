@@ -164,13 +164,16 @@
                                 </div>
                                 <div class="flex-1 min-w-0">
                                     <p class="text-sm font-semibold text-gray-800 dark:text-white group-hover:text-primary-600 dark:group-hover:text-primary-400 truncate" x-text="evt.title"></p>
-                                    <div class="flex items-center gap-1.5 mt-1">
+                                    <div class="flex items-center gap-1.5 mt-1 flex-wrap">
                                         <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-md"
                                               :class="evt.type === 'start'
                                                   ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300'
-                                                  : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400'"
-                                              x-text="evt.type === 'start' ? '▶ Başlangıç' : '⏹ Bitiş'"></span>
+                                                  : (evt.is_past ? 'bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-400' : 'bg-red-100 dark:bg-red-900/30 text-red-600 dark:text-red-400')"
+                                              x-text="evt.type === 'start' ? '▶ Başlangıç' : (evt.is_past ? '⚠ Geçti' : '⏹ Bitiş')"></span>
                                         <span class="text-[10px] text-gray-400 dark:text-gray-500 truncate" x-text="evt.category"></span>
+                                        <template x-if="evt.status === 'completed'">
+                                            <span class="inline-flex items-center text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300">✓ Tamamlandı</span>
+                                        </template>
                                     </div>
                                 </div>
                             </a>
@@ -317,8 +320,10 @@ function calendarApp() {
         },
 
         getMonthEventCount(type) {
+            // type: 'start' veya 'deadline' (controller'da 'end' yerine 'deadline' kullanılıyor)
+            const mapped = type === 'end' ? 'deadline' : type;
             const monthStr = this.currentYear + '-' + String(this.currentMonth + 1).padStart(2, '0');
-            return this.events.filter(e => e.date && e.date.startsWith(monthStr) && e.type === type).length;
+            return this.events.filter(e => e.date && e.date.startsWith(monthStr) && e.type === mapped).length;
         },
 
         prevMonth() {
