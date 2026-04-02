@@ -12,13 +12,16 @@ class ExamAnswer extends Model
     protected $fillable = [
         'exam_attempt_id', 'question_id',
         'selected_option', 'text_answer', 'is_correct', 'answered_at',
+        'manual_score', 'manual_feedback', 'graded_by', 'graded_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'is_correct' => 'boolean',
-            'answered_at' => 'datetime',
+            'is_correct'   => 'boolean',
+            'answered_at'  => 'datetime',
+            'graded_at'    => 'datetime',
+            'manual_score' => 'decimal:2',
         ];
     }
 
@@ -30,5 +33,10 @@ class ExamAnswer extends Model
     public function question(): BelongsTo
     {
         return $this->belongsTo(Question::class);
+    }
+
+    public function gradedBy(): BelongsTo
+    {
+        return $this->belongsTo(User::class, 'graded_by');
     }
 }

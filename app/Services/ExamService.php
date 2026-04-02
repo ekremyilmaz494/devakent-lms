@@ -22,6 +22,16 @@ class ExamService
 
     public function evaluateExam(ExamAttempt $attempt): array
     {
+        // Açık uçlu sorular değerlendirme bekliyorsa is_passed hesaplama
+        if ($attempt->needs_manual_grading) {
+            return [
+                'passed'    => null,
+                'next_step' => 'pending_review',
+                'score'     => $attempt->score,
+                'message'   => 'Açık uçlu sorularınız değerlendirme bekliyor. Sonuç değerlendirme tamamlandıktan sonra bildirilecektir.',
+            ];
+        }
+
         $enrollment = $attempt->enrollment;
         $course = $enrollment->course;
         $passingScore = $course->passing_score;
@@ -186,12 +196,57 @@ class ExamService
         // Puan = (doğru / otomatik toplam) * 100; eğer otomatik soru yoksa 0
         $score = $autoGradedTotal > 0 ? (int) round(($correctCount / $autoGradedTotal) * 100) : 0;
 
+        // Açık uçlu cevap var mı? Varsa manuel değerlendirme gerekiyor
+        $hasOpenEnded = $attempt->answers()
+            ->whereHas('question', fn ($q) => $q->where('question_type', 'open_ended'))
+            ->exists();
+
         $attempt->update([
-            'correct_answers' => $correctCount,
-            'score' => $score,
-            'finished_at' => now(),
+            'correct_answers'      => $correctCount,
+            'score'                => $score,
+            'finished_at'          => now(),
+            'needs_manual_grading' => $hasOpenEnded,
         ]);
 
         return $attempt->fresh();
+    }
+
+    public function calculateFinalScore(ExamAttempt $attempt): void
+    {
+        $totalQuestions = $attempt->answers()->count();
+        if ($totalQuestions === 0) {
+            return;
+        }
+
+        // Auto-graded doğru cevaplar (MCQ + T/F)
+        $autoCorrect = $attempt->answers()->where('is_correct', true)->count();
+
+        // Açık uçlu sorular: manual_score / 10 → normalize (0-1 arası katkı)
+        $openEndedPoints = $attempt->answers()
+            ->whereHas('question', fn ($q) => $q->where('question_type', 'open_ended'))
+            ->whereNotNull('manual_score')
+            ->get()
+            ->sum(fn ($a) => $a->manual_score / 10);
+
+        $score    = (int) round((($autoCorrect + $openEndedPoints) / $totalQuestions) * 100);
+        $enrollment = $attempt->enrollment;
+        $isPassed   = $score >= $enrollment->course->passing_score;
+
+        DB::transaction(function () use ($attempt, $score, $isPassed) {
+            $attempt->update([
+                'score'                       => $score,
+                'is_passed'                   => $isPassed,
+                'needs_manual_grading'        => false,
+                'manual_grading_completed_at' => now(),
+            ]);
+        });
+
+        // Post-exam akışı: sertifika, enrollment durumu, bildirim
+        if ($attempt->exam_type === 'post_exam') {
+            $freshAttempt = $attempt->fresh();
+            $user = User::find($enrollment->user_id);
+            $user?->notify(new ExamResultNotification($freshAttempt, $enrollment->course->title));
+            $this->handlePostExamResult($enrollment, $freshAttempt, $isPassed);
+        }
     }
 }

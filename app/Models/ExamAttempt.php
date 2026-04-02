@@ -12,14 +12,17 @@ class ExamAttempt extends Model
         'enrollment_id', 'attempt_number', 'exam_type',
         'score', 'total_questions', 'correct_answers',
         'started_at', 'finished_at', 'is_passed',
+        'needs_manual_grading', 'manual_grading_completed_at',
     ];
 
     protected function casts(): array
     {
         return [
-            'started_at' => 'datetime',
-            'finished_at' => 'datetime',
-            'is_passed' => 'boolean',
+            'started_at'                  => 'datetime',
+            'finished_at'                 => 'datetime',
+            'is_passed'                   => 'boolean',
+            'needs_manual_grading'        => 'boolean',
+            'manual_grading_completed_at' => 'datetime',
         ];
     }
 

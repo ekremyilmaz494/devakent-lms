@@ -82,6 +82,25 @@
             </div>
         </div>
 
+        {{-- Sınav Değerlendirme --}}
+        @php
+            $isGrader = request()->routeIs('admin.exams.grader');
+            $pendingGradeCount = \App\Models\ExamAttempt::where('needs_manual_grading', true)
+                ->whereNull('manual_grading_completed_at')->count();
+        @endphp
+        <a href="{{ route('admin.exams.grader') }}" wire:navigate
+           class="flex items-center px-3 py-2.5 rounded-lg text-[13px] font-medium transition-all duration-150 group {{ $isGrader ? 'bg-primary-100 dark:bg-primary-900/30 text-primary-700 dark:text-primary-300' : 'text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-700/50 hover:text-gray-900 dark:hover:text-white' }}">
+            <svg class="w-[18px] h-[18px] flex-shrink-0 {{ $isGrader ? 'text-primary-500' : 'text-gray-400 group-hover:text-gray-600 dark:group-hover:text-gray-300' }}" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" />
+            </svg>
+            <span class="ml-3">Sınav Değerlendirme</span>
+            @if($pendingGradeCount > 0)
+                <span class="ml-auto inline-flex items-center justify-center min-w-[20px] h-5 rounded-full bg-amber-500 px-1.5 text-[10px] font-bold text-white">
+                    {{ $pendingGradeCount > 99 ? '99+' : $pendingGradeCount }}
+                </span>
+            @endif
+        </a>
+
         {{-- Raporlar --}}
         @php $isReports = request()->routeIs('admin.reports.*'); @endphp
         <a href="{{ route('admin.reports.index') }}" wire:navigate

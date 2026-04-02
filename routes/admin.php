@@ -6,6 +6,7 @@ use App\Http\Controllers\Admin\CourseController;
 use App\Http\Controllers\Admin\CourseExportController;
 use App\Http\Controllers\Admin\DashboardController;
 use App\Http\Controllers\Admin\DepartmentController;
+use App\Http\Controllers\Admin\ExamGraderController;
 use App\Http\Controllers\Admin\NotificationController;
 use App\Http\Controllers\Admin\ReportController;
 use App\Http\Controllers\Admin\SettingController;
@@ -31,6 +32,7 @@ Route::get('/departments', [DepartmentController::class, 'index'])->name('depart
 Route::get('/categories', [CategoryController::class, 'index'])->name('categories.index');
 
 Route::get('/reports', [ReportController::class, 'index'])->name('reports.index');
+Route::get('/exams/grader', [ExamGraderController::class, 'index'])->name('exams.grader');
 Route::get('/notifications', [NotificationController::class, 'index'])->name('notifications.index');
 Route::get('/settings', [SettingController::class, 'index'])->name('settings.index');
 Route::get('/activity-log', [ActivityLogController::class, 'index'])->name('activity-log.index');
